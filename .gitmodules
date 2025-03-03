@@ -1,0 +1,6 @@
+[submodule "external/radiotap-library"]
+	path = external/radiotap-library
+	url = https://github.com/radiotap/radiotap-library.git
+[submodule "external/zfec"]
+	path = external/zfec
+	url = https://github.com/tahoe-lafs/zfec.git
