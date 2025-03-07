@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "frame_wfb.h"
 #include "fec_wfb.h"
@@ -51,6 +52,8 @@ fec_wfb_init(void)
 int
 fec_wfb_new(struct fec_context *ctx, int type, int k, int n)
 {
+	assert(ctx);
+
 	switch (type) {
 		case WFB_FEC_VDM_RS:
 			ctx->type = type;
@@ -65,6 +68,12 @@ fec_wfb_new(struct fec_context *ctx, int type, int k, int n)
 int fec_wfb_apply(struct fec_context *ctx,
     const uint8_t **in, uint8_t **out, unsigned *index, size_t size)
 {
+	assert(ctx);
+	assert(in);
+	assert(out);
+	assert(index);
+	assert(size);
+
 	switch (ctx->type) {
 		case WFB_FEC_VDM_RS:
 			return fec_zfec_decode(ctx, in, out, index, size);

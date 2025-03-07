@@ -1,34 +1,40 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
-#include "capture_core.h"
-#include "capture_session.h"
-#include "capture_data.h"
+#include "rx_core.h"
+#include "rx_session.h"
+#include "rx_data.h"
 #include "util_log.h"
 
 int
-capture_context_init(struct capture_context *ctx)
+rx_context_init(struct rx_context *ctx)
 {
+	assert(ctx);
+
 	memset(ctx, 0, sizeof(*ctx));
 
 	return 0;
 }
 
 void
-capture_context_dump(struct capture_context *ctx)
+rx_context_dump(struct rx_context *ctx)
 {
 	int i;
+
+	assert(ctx);
 
 	pcap_context_dump(&ctx->pcap);
 	radiotap_context_dump(&ctx->radiotap);
 	ieee80211_context_dump(&ctx->ieee80211);
 	wfb_context_dump(&ctx->wfb);
 
-	p_info("Payload: %p\n", ctx->payload);
-	p_info("Payload Length: %zu\n", ctx->payload_len);
-	p_info("Cipher: %p\n", ctx->cipher);
-	p_info("Cipher Length: %zu\n", ctx->cipher_len);
+	p_info("Block Header: %p\n", ctx->wfb.hdr);
+	p_info("Block Header Length: %zu\n", ctx->wfb.hdrlen);
+	p_info("Block Length: %zu\n", ctx->wfb.pktlen);
+	p_info("Cipher: %p\n", ctx->wfb.cipher);
+	p_info("Cipher Length: %llu\n", ctx->wfb.cipherlen);
 	p_info("Epoch: %" PRIu64 "\n", ctx->epoch);
 	p_info("FEC Type: %u\n", ctx->fec_type);
 	p_info("FEC K: %u\n", ctx->fec_k);
@@ -45,10 +51,13 @@ capture_context_dump(struct capture_context *ctx)
 }
 
 int
-capture_frame(void *rxbuf, size_t rxlen, void *arg)
+rx_frame(void *rxbuf, size_t rxlen, void *arg)
 {
-	struct capture_context *ctx = (struct capture_context *)arg;
+	struct rx_context *ctx = (struct rx_context *)arg;
 	ssize_t parsed;
+
+	assert(rxbuf);
+	assert(ctx);
 
 	parsed = pcap_frame_parse(rxbuf, rxlen, &ctx->pcap);
 	if (parsed < 0)
@@ -74,19 +83,14 @@ capture_frame(void *rxbuf, size_t rxlen, void *arg)
 	parsed = wfb_frame_parse(rxbuf, rxlen, &ctx->wfb);
 	if (parsed < 0)
 		return -1;
-	ctx->payload = rxbuf;
-	ctx->payload_len = rxlen;
 	rxbuf += parsed;
 	rxlen -= parsed;
-	ctx->cipher = rxbuf;
-	ctx->cipher_len = rxlen;
 
-
-	switch (ctx->wfb.packet_type) {
+	switch (ctx->wfb.hdr->packet_type) {
 		case WFB_PACKET_SESSION:
-			return capture_session(ctx);
+			return rx_session(ctx);
 		case WFB_PACKET_DATA:
-			return capture_data(ctx);
+			return rx_data(ctx);
 		default:
 			break;
 	}

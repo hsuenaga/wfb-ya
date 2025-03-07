@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "frame_wfb.h"
 #include "crypto_wfb.h"
 #include "util_log.h"
 
 static const char *
-s_wfb_packet_type(uint8_t type)
+s_packet_type(uint8_t type)
 {
 	switch (type) {
 		case WFB_PACKET_DATA:
@@ -21,44 +22,13 @@ s_wfb_packet_type(uint8_t type)
 	return "Unknown";
 }
 
-static void
-dump_data_nonce(const struct wfb_context *ctx)
-{
-	int i;
-
-	p_info("WFB Data Nonce: 0x");
-	for (i = 0; i < sizeof(ctx->nonce.data); i++) {
-		p_info("%02x", ctx->nonce.data[i]);
-	}
-	p_info("\n");
-}
-
-static void
-dump_session_nonce(const struct wfb_context *ctx)
-{
-	int i;
-
-	p_info("WFB Session Nonce: 0x");
-	for (i = 0; i < sizeof(ctx->nonce.session); i++) {
-		p_info("%02x", ctx->nonce.session[i]);
-	}
-	p_info("\n");
-}
-
 void
 wfb_context_dump(const struct wfb_context *ctx)
 {
-	p_info("WFB Pcaket Type: %s\n", s_wfb_packet_type(ctx->packet_type));
-	switch (ctx->packet_type) {
-		case WFB_PACKET_DATA:
-			dump_data_nonce(ctx);
-			break;
-		case WFB_PACKET_SESSION:
-			dump_session_nonce(ctx);
-			break;
-		default:
-			break;
-	}
+	assert(ctx);
+
+	p_info("WFB Pcaket Type: %s\n", s_packet_type(ctx->hdr->packet_type));
+	p_info("WFB Nonce: %s\n", s_binary(ctx->nonce, ctx->noncelen));
 	p_info("WFB Data Block Index: %" PRIu64 "\n", ctx->block_idx);
 	p_info("WFB Data Fragment Index: %u\n", ctx->fragment_idx);
 }
@@ -66,11 +36,15 @@ wfb_context_dump(const struct wfb_context *ctx)
 ssize_t
 wfb_frame_parse(void *data, size_t size, struct wfb_context *ctx)
 {
-	struct wfb_ng_hdr *hdr = (struct wfb_ng_hdr *)data;
-	ssize_t hdrlen = 0;
 	uint64_t v64;
 
-	if (size < sizeof(hdr->packet_type)) {
+	assert(data);
+	assert(ctx);
+
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->hdr = (struct wfb_ng_hdr *)data;
+
+	if (size < sizeof(ctx->hdr->packet_type)) {
 		p_err("Frame too short\n");
 		return -1;
 	}
@@ -78,35 +52,42 @@ wfb_frame_parse(void *data, size_t size, struct wfb_context *ctx)
 		p_err("Frame too long\n");
 		return -1;
 	}
-	ctx->packet_type = hdr->packet_type;
+	ctx->pktlen = size;
 
-	switch (ctx->packet_type) {
+	switch (ctx->hdr->packet_type) {
 		case WFB_PACKET_DATA:
 			if (size < WFB_DATA_BLOCK_HDRLEN) {
 				p_err("Frame too short\n");
 				return -1;
 			}
-			memcpy(ctx->nonce.data, hdr->u.data.nonce,
-			    sizeof(ctx->nonce.data));
-			memcpy(&v64, hdr->u.data.nonce, sizeof(v64));
+			ctx->nonce = ctx->hdr->u.data.nonce;
+			ctx->noncelen = sizeof(ctx->hdr->u.data.nonce);
+			memcpy(&v64, ctx->nonce, sizeof(v64));
 			v64 = be64toh(v64);
 			ctx->block_idx = v64 >> 8;
 			ctx->fragment_idx = (uint8_t)(v64 & 0xff);
-			hdrlen = WFB_DATA_BLOCK_HDRLEN;
+			ctx->hdrlen = WFB_DATA_BLOCK_HDRLEN;
 			break;
 		case WFB_PACKET_SESSION:
 			if (size < WFB_SESSION_BLOCK_HDRLEN) {
 				p_err("Frame too short\n");
 				return -1;
 			}
-			memcpy(ctx->nonce.session, hdr->u.session.nonce,
-			    sizeof(ctx->nonce.session));
-			hdrlen = WFB_SESSION_BLOCK_HDRLEN;
+			ctx->nonce = ctx->hdr->u.session.nonce;
+			ctx->noncelen = sizeof(ctx->hdr->u.session.nonce);
+			ctx->hdrlen = WFB_SESSION_BLOCK_HDRLEN;
+			break;
 			break;
 		default:
 			p_err("Unknown packet type\n");
 			return -1;
 	}
+	if (ctx->pktlen < ctx->hdrlen) {
+		p_err("Frame too short\n");
+		return -1;
+	}
+	ctx->cipher = (uint8_t *)ctx->hdr + ctx->hdrlen;
+	ctx->cipherlen = ctx->pktlen - ctx->hdrlen;
 
-	return hdrlen;
+	return ctx->pktlen;
 }

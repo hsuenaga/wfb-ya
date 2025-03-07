@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <assert.h>
 
 #include "util_rbuf.h"
 #include "util_log.h"
@@ -93,6 +94,8 @@ rbuf_get_block(struct rbuf *rbuf, uint64_t block_idx)
 	uint64_t allocate_start;
 	size_t idx;
 	int i;
+
+	assert(rbuf);
 
 	for (i = 0; i < rbuf->ring_alloc; i++) {
 		idx = (rbuf->ring_front + i) % rbuf->ring_size;

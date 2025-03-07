@@ -26,9 +26,9 @@ set (WFB_CFLAGS_OTHER "-Wall" "-g")
 add_executable(wfb_listener
 	src/main.c
 	src/net_pcap.c
-	src/capture_core.c
-	src/capture_session.c
-	src/capture_data.c
+	src/rx_core.c
+	src/rx_session.c
+	src/rx_data.c
 	src/frame_pcap.c
 	src/frame_radiotap.c
 	src/frame_ieee80211.c

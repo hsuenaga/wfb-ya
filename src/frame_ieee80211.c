@@ -1,106 +1,103 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <assert.h>
 
 #include <string.h>
 
 #include "frame_ieee80211.h"
 #include "util_log.h"
 
-static int
-r_version(struct ieee80211_header *hdr)
+static inline int
+get_version(uint16_t frame_control)
 {
-	uint16_t v = le16toh(hdr->frame_control);
-
-	return (v & 0x03);
+	return (frame_control & 0x03);
 }
 
-static int
-r_ftype(struct ieee80211_header *hdr)
+static inline int
+get_frame_type(uint16_t frame_control)
 {
-	uint16_t v = le16toh(hdr->frame_control);
-
-	return ((v >> 2) & 0x3);
+	return ((frame_control >> 2) & 0x3);
 }
 
-static int
-r_subtype(struct ieee80211_header *hdr)
+static inline int
+get_frame_subtype(uint16_t frame_control)
 {
-	uint16_t v = le16toh(hdr->frame_control);
-
-	return ((v >> 4) & 0xf);
+	return ((frame_control >> 4) & 0xf);
 }
 
-static uint16_t
-r_signature(struct ieee80211_header *hdr)
+static inline uint16_t
+get_signature(uint8_t *addr)
 {
 	uint16_t v;
 
-	memcpy(&v, &hdr->u.base3.addr2[0], sizeof(v));
+	memcpy(&v, &addr[0], sizeof(v));
 
 	return be16toh(v);
 }
 
-static uint32_t
-r_channel_id(struct ieee80211_header *hdr)
+static inline uint32_t
+get_channel_id(uint8_t *addr)
 {
 	uint32_t v;
 
-	memcpy(&v, &hdr->u.base3.addr2[2], sizeof(v));
+	memcpy(&v, &addr[2], sizeof(v));
 
-	return (be32toh(v)); // WFG is Big-Endian
-}
-
-static uint8_t
-r_stream_id(struct ieee80211_header *hdr)
-{
-	return (hdr->u.base3.addr2[5]);
+	return be32toh(v);
 }
 
 void
 ieee80211_context_dump(const struct ieee80211_context *ctx)
 {
-	p_info("DST: %02x-%02x-%02x-%02x-%02x-%02x\n",
-		ctx->dst[0], ctx->dst[1], ctx->dst[2],
-		ctx->dst[3], ctx->dst[4], ctx->dst[5]);
-	p_info("SRC: %02x-%02x-%02x-%02x-%02x-%02x\n",
-		ctx->src[0], ctx->src[1], ctx->src[2],
-		ctx->src[3], ctx->src[4], ctx->src[5]);
-	p_info("BSS: %02x-%02x-%02x-%02x-%02x-%02x\n",
-		ctx->bss[0], ctx->bss[1], ctx->bss[2],
-		ctx->bss[3], ctx->bss[4], ctx->bss[5]);
+	assert(ctx);
+
+	p_info("DST: %s\n", s_mac48(ctx->hdr->u.base3.addr1));
+	p_info("SRC: %s\n", s_mac48(ctx->hdr->u.base3.addr2));
+	p_info("BSS: %s\n", s_mac48(ctx->hdr->u.base3.addr3));
 	p_info("WFB SIGNATURE: 0x%04x\n", ctx->wfb_signature);
 	p_info("WFB Channel ID: 0x%06x\n", ctx->channel_id);
-	p_info("WFB Stream ID: 0x%02x\n", ctx->stream_id);
 }
 
 ssize_t
 ieee80211_frame_parse(void *data, size_t size, struct ieee80211_context *ctx)
 {
-	struct ieee80211_header *hdr = (struct ieee80211_header *)data;
-	size_t hdrlen = 0;
+	uint16_t frame_control;
+	int version, type, subtype;
 
-	if (size < 4) {
+	assert(data);
+	assert(ctx);
+
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->hdr = (struct ieee80211_header *)data;
+
+	if (size < sizeof(frame_control)) {
 		p_err("Frame too short\n");
 		return -1;
 	}
-	if (r_version(hdr) != 0) {
+	memcpy(&frame_control, &ctx->hdr->frame_control, sizeof(frame_control));
+	frame_control = le16toh(frame_control);
+	version = get_version(frame_control);
+	type = get_frame_type(frame_control);
+	subtype = get_frame_subtype(frame_control);
+
+	if (version != 0) {
 		p_err("Unknown version\n");
 		return -1;
 	}
-	switch (r_ftype(hdr)) {
+	switch (type) {
 		case FTYPE_DATA:
 			break;
 		case FTYPE_MGMT:
 		case FTYPE_CTRL:
 		case FTYPE_EXT:
 		default:
-			p_err("Unknown frame type(%d)\n", r_ftype(hdr));
+			p_err("Unsupported frame type(%d)\n", type);
 			return -1;
 
 	}
-	switch (r_subtype(hdr)) {
+	switch (subtype) {
 		case DTYPE_DATA:
+			ctx->hdrlen = IEEE80211_DATA_HDRLEN;
 			break;
 		case DTYPE_NULL:
 		case DTYPE_QOS:
@@ -111,20 +108,17 @@ ieee80211_frame_parse(void *data, size_t size, struct ieee80211_context *ctx)
 		case DTYPE_QOS_NULL_POLL:
 		case DTYPE_QOS_NULL_ACK_POLL:
 		default:
-			p_err("Unknown frame subtype\n");
+			p_err("Unsupported frame subtype(%d)\n", subtype);
 			return -1;
 	}
-	hdrlen = IEEE80211_DATA_HDRLEN;
-	if (size < hdrlen) {
+
+	if (size < ctx->hdrlen) {
 		p_err("Frame too short");
 		return -1;
 	}
-	memcpy(ctx->dst, hdr->u.base3.addr1, sizeof(ctx->dst));
-	memcpy(ctx->src, hdr->u.base3.addr2, sizeof(ctx->dst));
-	memcpy(ctx->bss, hdr->u.base3.addr3, sizeof(ctx->dst));
-	ctx->wfb_signature = r_signature(hdr);
-	ctx->channel_id = r_channel_id(hdr);
-	ctx->stream_id = r_stream_id(hdr);
+
+	ctx->wfb_signature = get_signature(ctx->hdr->u.base3.addr2);
+	ctx->channel_id = get_channel_id(ctx->hdr->u.base3.addr2);
 
 	switch (ctx->wfb_signature) {
 		case WFG_SIG:
@@ -134,5 +128,5 @@ ieee80211_frame_parse(void *data, size_t size, struct ieee80211_context *ctx)
 			return -1;
 	}
 
-	return hdrlen;
+	return ctx->hdrlen;
 }

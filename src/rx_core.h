@@ -1,5 +1,5 @@
-#ifndef __CAPTURE_CORE_H__
-#define __CAPTURE_CORE_H__
+#ifndef __RX_CORE_H__
+#define __RX_CORE_H__
 #include <stdbool.h>
 
 #include "frame_pcap.h"
@@ -8,17 +8,12 @@
 #include "frame_wfb.h"
 #include "fec_wfb.h"
 
-struct capture_context {
+struct rx_context {
 	struct pcap_context pcap;
 	struct radiotap_context radiotap;
 	struct ieee80211_context ieee80211;
 	struct wfb_context wfb;
 	struct fec_context fec;
-
-	void *payload;
-	size_t payload_len;
-	void *cipher;
-	unsigned long long cipher_len;
 
 	/* session */
 	uint64_t epoch;
@@ -32,7 +27,7 @@ struct capture_context {
 	struct rbuf *rx_ring;
 };
 
-extern int capture_context_init(struct capture_context *ctx);
-extern void capture_context_dump(struct capture_context *ctx);
-extern int capture_frame(void *rxbuf, size_t rxlen, void *arg);
-#endif /* __CAPTURE_CORE_H__ */
+extern int rx_context_init(struct rx_context *ctx);
+extern void rx_context_dump(struct rx_context *ctx);
+extern int rx_frame(void *rxbuf, size_t rxlen, void *arg);
+#endif /* __RX_CORE_H__ */

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #include <sodium.h>
 
@@ -63,6 +64,9 @@ err:
 int
 crypto_wfb_session_key_set(const uint8_t *key, size_t klen)
 {
+	assert(key);
+	assert(klen);
+
 	ctx.has_session_key = false;
 	if (klen != sizeof(ctx.session_key))
 		return -1;
@@ -78,8 +82,11 @@ crypto_wfb_session_decrypt(uint8_t *dst, const uint8_t *src, uint64_t len,
 {
 	int r;
 
-	if (dst == NULL || src == NULL || len == 0 || nonce == NULL)
-		return -1;
+	assert(dst);
+	assert(src);
+	assert(len);
+	assert(nonce);
+
 	if (!ctx.initialized || !ctx.has_secret_key || !ctx.has_public_key)
 		return -1;
 
@@ -102,9 +109,12 @@ crypto_wfb_data_decrypt(uint8_t *dst, unsigned long long *dstlen,
 	uint8_t *dstp;
 	unsigned long long *dstlenp;
 
-	if (dst == NULL || src == NULL ||
-	    *dstlen == 0 || srclen == 0 || hdrlen > srclen || nonce == NULL)
-		return -1;
+	assert(dst);
+	assert(src);
+	assert(srclen);
+	assert(hdrlen < srclen);
+	assert(nonce);
+
 	if (!ctx.initialized || !ctx.has_session_key)
 		return -1;
 

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #include <event2/event-config.h>
 #include <event2/event.h>
@@ -16,6 +17,8 @@
 void
 pcap_context_dump(struct pcap_context *ctx)
 {
+	assert(ctx);
+
 	p_info("Capture Data: 0x%p\n", ctx->data);
 	p_info("Capture Length: %u\n", ctx->caplen);
 }
@@ -23,6 +26,9 @@ pcap_context_dump(struct pcap_context *ctx)
 ssize_t
 pcap_frame_parse(void *rxbuf, size_t rxlen, struct pcap_context *ctx)
 {
+	assert(rxbuf);
+	assert(ctx);
+
 	ctx->data = rxbuf;
 	ctx->caplen = rxlen;
 

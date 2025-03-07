@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include <pcap.h>
 
@@ -15,8 +16,7 @@ netpcap_filter_initialize(pcap_t *pcap, uint32_t channel_id)
 	struct bpf_program bpf_pg;
 	char str_pg[BUFSIZ];
 
-	if (pcap == NULL)
-		return -1;
+	assert(pcap);
 
 	if (channel_id > 0) {
 		snprintf(str_pg, sizeof(str_pg),
@@ -49,6 +49,8 @@ netpcap_initialize(const char *dev, uint32_t channel_id)
 	int rcv_buf_siz = BUFSIZ;
 	int link_encap;
 	const char *name, *desc;
+
+	assert(dev);
 
 	if (_pcap)
 		return pcap_get_selectable_fd(_pcap);
@@ -127,7 +129,7 @@ netpcap_recv(struct pcap_pkthdr **hdr, void **rxbuf)
 }
 
 static void
-netpcap_capture_one(evutil_socket_t fd, short event, void *arg)
+netpcap_rx_one(evutil_socket_t fd, short event, void *arg)
 {
 	struct netpcap_context *ctx = (struct netpcap_context *)arg;
 	struct pcap_pkthdr *hdr;
@@ -149,13 +151,13 @@ netpcap_capture_one(evutil_socket_t fd, short event, void *arg)
 }
 
 int
-netpcap_capture_start(int fd, int (*cb)(void *, size_t, void *), void *arg)
+netpcap_rx_start(int fd, int (*cb)(void *, size_t, void *), void *arg)
 {
 	struct netpcap_context ctx;
 
 	ctx.base = event_base_new();
 	ctx.fifo = event_new(ctx.base, fd, EV_READ|EV_PERSIST,
-	    netpcap_capture_one, (void *)&ctx);
+	    netpcap_rx_one, (void *)&ctx);
 	ctx.cb = cb;
 	ctx.cb_arg = arg;
 

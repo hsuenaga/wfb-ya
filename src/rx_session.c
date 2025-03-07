@@ -3,54 +3,57 @@
 #include <stdint.h>
 #include <string.h>
 #include <inttypes.h>
+#include <assert.h>
 
 #include "crypto_wfb.h"
-#include "capture_core.h"
-#include "capture_session.h"
+#include "rx_core.h"
+#include "rx_session.h"
 #include "frame_wfb.h"
 #include "util_log.h"
 
 static void
-capture_session_dump(struct capture_context *ctx)
+rx_session_dump(struct rx_context *ctx)
 {
-	int i;
+	assert(ctx);
 
 	p_info("-- New Session --\n");
 	p_info("epoch: %" PRIu64 "\n", ctx->epoch);
-	p_info("fec_type: %" PRIu8 "\n", ctx->fec_type);
-	p_info("fec_k: %" PRIu8 "\n", ctx->fec_k);
-	p_info("fec_n: %" PRIu8 "\n", ctx->fec_n);
-	p_info("session_key: 0x");
-	for (i = 0; i < crypto_aead_chacha20poly1305_KEYBYTES; i++) {
-		p_info("%02" PRIx8, ctx->session_key[i]);
-	}
-	p_info("\n");
+	p_info("fec_type: %u\n", ctx->fec_type);
+	p_info("fec_k: %u\n", ctx->fec_k);
+	p_info("fec_n: %u\n", ctx->fec_n);
+	p_info("session_key: 0x%s\n",
+	    s_binary(ctx->session_key, sizeof(ctx->session_key)));
 }
 
 int
-capture_session(struct capture_context *ctx)
+rx_session(struct rx_context *ctx)
 {
-	struct wfb_session_data *data = (struct wfb_session_data *)ctx->cipher;
+	struct wfb_session_data *data;
+	uint64_t epoch;
 	int r;
 
-	if (!ctx->payload)
-		return -1;
-	if (ctx->payload_len < MIN_SESSION_PACKET_LEN) {
+	assert(ctx);
+	assert(ctx->wfb.cipher);
+	assert(ctx->wfb.nonce);
+
+	if (ctx->wfb.pktlen < MIN_SESSION_PACKET_LEN) {
 		p_err("Frame too short\n");
 		return -1;
 	}
 
-	r = crypto_wfb_session_decrypt(ctx->cipher, ctx->cipher,
-	    ctx->cipher_len, ctx->wfb.nonce.session);
+	r = crypto_wfb_session_decrypt(ctx->wfb.cipher, ctx->wfb.cipher,
+	    ctx->wfb.cipherlen, ctx->wfb.nonce);
 	if (r < 0)
 		return -1;
+	data = (struct wfb_session_data *)ctx->wfb.cipher;
+	epoch = be64toh(data->epoch);
 
-	if (be64toh(data->epoch) < ctx->epoch) {
+	if (epoch < ctx->epoch) {
 		p_err("Invalid Epoch\n");
 		// XXX: ... But how to recover from Tx reboot???
 		return -1;
 	}
-	if (ctx->has_session_key && be64toh(data->epoch) == ctx->epoch) {
+	if (ctx->has_session_key && epoch == ctx->epoch) {
 		// No rekeying required. drop the frame siliently.
 		return 0;
 	}
@@ -88,15 +91,17 @@ capture_session(struct capture_context *ctx)
 		p_err("Cannot Initialize Rx Buffer\n");
 		return -1;
 	}
-	ctx->epoch = be64toh(data->epoch);
+	ctx->epoch = epoch;
 	ctx->fec_type = data->fec_type;
 	ctx->fec_k = data->fec_k;
 	ctx->fec_n = data->fec_n;
+	// XXX: ctx->session_key is not reuiqred in the fact.
 	memcpy(ctx->session_key, data->session_key, sizeof(ctx->session_key));
-	crypto_wfb_session_key_set(ctx->session_key, sizeof(ctx->session_key));
+	crypto_wfb_session_key_set(data->session_key,
+	    sizeof(data->session_key));
 	ctx->has_session_key = true;
 
-	capture_session_dump(ctx);
+	rx_session_dump(ctx);
 
 	return 0;
 }

@@ -18,7 +18,7 @@ struct netpcap_context {
 };
 
 extern int netpcap_initialize(const char *dev, uint32_t channel_id);
-extern int netpcap_capture_start(int fd,
+extern int netpcap_rx_start(int fd,
     int(*cb)(void *, size_t, void *), void *cb_arg);
 
 #endif /* __NET_PCAP_H__ */
