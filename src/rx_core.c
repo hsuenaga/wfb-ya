@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <assert.h>
 
@@ -9,11 +11,15 @@
 #include "util_log.h"
 
 int
-rx_context_init(struct rx_context *ctx)
+rx_context_init(struct rx_context *ctx, uint32_t channel_id,
+    void (*cb)(uint8_t *data, size_t size, void *arg), void *arg)
 {
 	assert(ctx);
 
 	memset(ctx, 0, sizeof(*ctx));
+	ctx->cb = cb;
+	ctx->cb_arg = arg;
+	ctx->channel_id = channel_id;
 
 	return 0;
 }
@@ -50,10 +56,24 @@ rx_context_dump(struct rx_context *ctx)
 	}
 }
 
-int
-rx_frame(void *rxbuf, size_t rxlen, void *arg)
+static int
+rx_wfb(struct rx_context *ctx)
 {
-	struct rx_context *ctx = (struct rx_context *)arg;
+	switch (ctx->wfb.hdr->packet_type) {
+		case WFB_PACKET_SESSION:
+			return rx_session(ctx);
+		case WFB_PACKET_DATA:
+			return rx_data(ctx);
+		default:
+			break;
+	}
+
+	return 0;
+}
+
+int
+rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen)
+{
 	ssize_t parsed;
 
 	assert(rxbuf);
@@ -78,7 +98,8 @@ rx_frame(void *rxbuf, size_t rxlen, void *arg)
 		return -1;
 	rxbuf += parsed;
 	rxlen -= parsed;
-
+	if (ctx->channel_id && ctx->channel_id != ctx->ieee80211.channel_id)
+		return -1;
 
 	parsed = wfb_frame_parse(rxbuf, rxlen, &ctx->wfb);
 	if (parsed < 0)
@@ -86,14 +107,22 @@ rx_frame(void *rxbuf, size_t rxlen, void *arg)
 	rxbuf += parsed;
 	rxlen -= parsed;
 
-	switch (ctx->wfb.hdr->packet_type) {
-		case WFB_PACKET_SESSION:
-			return rx_session(ctx);
-		case WFB_PACKET_DATA:
-			return rx_data(ctx);
-		default:
-			break;
-	}
+	return rx_wfb(ctx);
+}
 
-	return 0;
+int
+rx_frame_udp(struct rx_context *ctx, void *rxbuf, size_t rxlen)
+{
+	ssize_t parsed;
+
+	assert(rxbuf);
+	assert(ctx);
+
+	parsed = wfb_frame_parse(rxbuf, rxlen, &ctx->wfb);
+	if (parsed < 0)
+		return -1;
+	rxbuf += parsed;
+	rxlen -= parsed;
+
+	return rx_wfb(ctx);
 }

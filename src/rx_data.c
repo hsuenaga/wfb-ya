@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <alloca.h>
 #include <assert.h>
@@ -13,31 +15,55 @@
 #include "util_log.h"
 
 static void
-send_data_one(struct rbuf_block *blk)
+send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 {
 	struct wfb_data_hdr *hdr;
-	size_t len;
+	uint16_t pktlen;
+	bool is_fec;
+	uint32_t seq;
+	static uint32_t last_seq = 0;
 
 	hdr = (struct wfb_data_hdr *)blk->fragment[blk->fragment_to_send];
-	len = blk->fragment_len[blk->fragment_to_send];
+	pktlen = be16toh(hdr->packet_size);
+	is_fec = (blk->fragment_len[blk->fragment_to_send] == 0);
+	seq = blk->index * ctx->fec_k + blk->fragment_to_send;
 
-	p_info("Received: %d bytes, BLK %" PRIu64 ", FRAG %02x, FEC: %s\n",
-	    be16toh(hdr->packet_size), blk->index, blk->fragment_to_send,
-	    (len == 0) ? "YES" : "NO");
+	if (last_seq > 0) {
+		if (seq > last_seq + 1) {
+			p_info("Missing Frame: %d\n",
+			   seq - last_seq - 1);
+		}
+	}
+	last_seq = seq;
 
-	// TODO: callback here.
+	if (hdr->flags & WFB_PACKET_F_FEC_ONLY)
+		return; // Null frame to complete FEC
+	if (pktlen > MAX_PAYLOAD_SIZE) {
+		p_info("Malformed frame detected. Invalid FEC?\n");
+		return;
+	}
+
+
+	if (ctx->cb)
+		ctx->cb((uint8_t *)(hdr + 1), pktlen, ctx->cb_arg);
+	else
+		p_info("Received %lu: %d bytes, BLK %" PRIu64
+		    ", FRAG %02x, FEC: %s\n",
+		    seq, pktlen, blk->index, blk->fragment_to_send,
+		    is_fec ? "YES" : "NO");
 	
 	return;
 }
 
 static void
-send_data_k(struct rbuf_block *blk, int k, bool stale, bool recovered)
+send_data_any(struct rx_context *ctx, struct rbuf_block *blk, bool stale,
+    bool recovered)
 {
-	while (blk->fragment_to_send < k) {
+	while (blk->fragment_to_send < ctx->fec_k) {
 		size_t len = blk->fragment_len[blk->fragment_to_send];
 
 		if (len > 0 || recovered) {
-			send_data_one(blk);
+			send_data_one(ctx, blk);
 			blk->fragment_to_send++;
 			continue;
 		}
@@ -50,21 +76,21 @@ send_data_k(struct rbuf_block *blk, int k, bool stale, bool recovered)
 }
 
 static inline void
-send_data_seq(struct rbuf_block *blk, int k)
+send_data_seq(struct rx_context *ctx, struct rbuf_block *blk)
 {
-	return send_data_k(blk, k, false, false);
+	return send_data_any(ctx, blk, false, false);
 }
 
 static inline void
-send_data_stale(struct rbuf_block *blk, int k)
+send_data_stale(struct rx_context *ctx, struct rbuf_block *blk)
 {
-	return send_data_k(blk, k, true, false);
+	return send_data_any(ctx, blk, true, false);
 }
 
 static inline void
-send_data_recovered(struct rbuf_block *blk, int k)
+send_data_recovered(struct rx_context *ctx, struct rbuf_block *blk)
 {
-	return send_data_k(blk, k, false, true);
+	return send_data_any(ctx, blk, false, true);
 }
 
 static void
@@ -73,7 +99,7 @@ purge_stale(struct rx_context *ctx, struct rbuf_block *blk)
 	while (!rbuf_block_is_front(blk)) {
 		struct rbuf_block *stale = rbuf_get_front(blk->rbuf);
 
-		send_data_stale(stale, ctx->fec_k);
+		send_data_stale(ctx, stale);
 		rbuf_free_block(stale);
 	}
 }
@@ -123,7 +149,7 @@ data_add(struct rx_context *ctx, struct rbuf_block *blk)
 {
 	if (rbuf_block_is_front(blk)) {
 		// cut through sequencial data.
-		send_data_seq(blk, ctx->fec_k);
+		send_data_seq(ctx, blk);
 
 		if (blk->fragment_to_send == ctx->fec_k) {
 			// all data received. we can drop parity frames.
@@ -150,12 +176,12 @@ data_add(struct rx_context *ctx, struct rbuf_block *blk)
 				fec_count++;
 		}
 		if (fec_count) {
-			p_info("Recover %d frames using FEC\n", fec_count);
+//			p_info("Recover %d frames using FEC\n", fec_count);
 			data_recovery(ctx, blk);
 		}
 
 		// the block is completed, or recovered now.
-		send_data_recovered(blk, ctx->fec_k);
+		send_data_recovered(ctx, blk);
 		rbuf_free_block(blk);
 
 		return 0;

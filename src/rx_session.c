@@ -28,7 +28,7 @@ rx_session_dump(struct rx_context *ctx)
 int
 rx_session(struct rx_context *ctx)
 {
-	struct wfb_session_data *data;
+	struct wfb_session_hdr *hdr;
 	uint64_t epoch;
 	int r;
 
@@ -45,8 +45,8 @@ rx_session(struct rx_context *ctx)
 	    ctx->wfb.cipherlen, ctx->wfb.nonce);
 	if (r < 0)
 		return -1;
-	data = (struct wfb_session_data *)ctx->wfb.cipher;
-	epoch = be64toh(data->epoch);
+	hdr = (struct wfb_session_hdr *)ctx->wfb.cipher;
+	epoch = be64toh(hdr->epoch);
 
 	if (epoch < ctx->epoch) {
 		p_err("Invalid Epoch\n");
@@ -60,45 +60,44 @@ rx_session(struct rx_context *ctx)
 
 	// Start rekeying. We need strict error checking before accepting.
 	ctx->has_session_key = false;
-	if (ctx->ieee80211.channel_id != be32toh(data->channel_id)) {
+	if (ctx->channel_id && ctx->channel_id != be32toh(hdr->channel_id)) {
 		p_err("Channel ID mismach\n");
 		return -1;
 	}
-	switch (data->fec_type) {
+	switch (hdr->fec_type) {
 		case WFB_FEC_VDM_RS:
 			break;
 		default:
 			p_err("Unsupported FEC type\n");
 			return -1;
 	}
-	if (data->fec_n < 1) {
+	if (hdr->fec_n < 1) {
 		p_err("Invalid FEC N\n");
 		return -1;
 	}
-	if (data->fec_k < 1 || data->fec_k > data->fec_n) {
+	if (hdr->fec_k < 1 || hdr->fec_k > hdr->fec_n) {
 		p_err("Invalid FEC K\n");
 		return -1;
 	}
 	if (fec_wfb_new(&ctx->fec,
-	    data->fec_type, data->fec_k, data->fec_n) < 0) {
+	    hdr->fec_type, hdr->fec_k, hdr->fec_n) < 0) {
 		p_err("Cannot Initialize FEC\n");
 		return -1;
 	}
 	if (ctx->rx_ring)
 		rbuf_free(ctx->rx_ring);
-	ctx->rx_ring = rbuf_alloc(RX_RING_SIZE, MAX_FEC_PAYLOAD, data->fec_n);
+	ctx->rx_ring = rbuf_alloc(RX_RING_SIZE, MAX_FEC_PAYLOAD, hdr->fec_n);
 	if (ctx->rx_ring == NULL) {
 		p_err("Cannot Initialize Rx Buffer\n");
 		return -1;
 	}
 	ctx->epoch = epoch;
-	ctx->fec_type = data->fec_type;
-	ctx->fec_k = data->fec_k;
-	ctx->fec_n = data->fec_n;
+	ctx->fec_type = hdr->fec_type;
+	ctx->fec_k = hdr->fec_k;
+	ctx->fec_n = hdr->fec_n;
 	// XXX: ctx->session_key is not reuiqred in the fact.
-	memcpy(ctx->session_key, data->session_key, sizeof(ctx->session_key));
-	crypto_wfb_session_key_set(data->session_key,
-	    sizeof(data->session_key));
+	memcpy(ctx->session_key, hdr->session_key, sizeof(ctx->session_key));
+	crypto_wfb_session_key_set(hdr->session_key, sizeof(hdr->session_key));
 	ctx->has_session_key = true;
 
 	rx_session_dump(ctx);

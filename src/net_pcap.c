@@ -1,14 +1,51 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include <pcap.h>
 
+#include "net_core.h"
+#include "rx_core.h"
 #include "net_pcap.h"
 #include "util_log.h"
 
-static char _errbuf[PCAP_ERRBUF_SIZE] = { '\0' };
-static pcap_t *_pcap = NULL; // singleton at this time.
+static ssize_t
+netpcap_recv(pcap_t *pcap, struct pcap_pkthdr **hdr, void **rxbuf)
+{
+	assert(pcap);
+	assert(hdr);
+	assert(rxbuf);
+
+	if (pcap_next_ex(pcap, hdr, (const u_char **)rxbuf) != 1) {
+		p_err("pcap_next() failed: %s\n", pcap_geterr(pcap));
+		return -1;
+	}
+	if ((*hdr)->caplen < (*hdr)->len) {
+		p_info("packet is trancated.\n");
+	}
+
+	return (ssize_t)((*hdr)->caplen);
+}
+
+static void
+netpcap_rx(evutil_socket_t fd, short event, void *arg)
+{
+	struct netpcap_context *ctx = (struct netpcap_context *)arg;
+	struct pcap_pkthdr *hdr;
+	void *rxbuf;
+	ssize_t rxlen;
+
+	rxlen = netpcap_recv(ctx->pcap, &hdr, &rxbuf);
+	if (rxlen < 0) {
+		p_err("recv_pcap() failed.\n");
+		return;
+	}
+
+	rx_frame_pcap(ctx->rx_ctx, rxbuf, rxlen);
+
+	return;
+}
 
 static int
 netpcap_filter_initialize(pcap_t *pcap, uint32_t channel_id)
@@ -44,129 +81,103 @@ netpcap_filter_initialize(pcap_t *pcap, uint32_t channel_id)
 }
 
 int
-netpcap_initialize(const char *dev, uint32_t channel_id)
+netpcap_initialize(struct netpcap_context *ctx,
+    struct netcore_context *net_ctx,
+    struct rx_context *rx_ctx,
+    const char *dev, uint32_t channel_id)
 {
+	pcap_t *pcap = NULL;
+	char errbuf[PCAP_ERRBUF_SIZE] = {'\0'};
 	int rcv_buf_siz = BUFSIZ;
 	int link_encap;
 	const char *name, *desc;
 
+	assert(ctx);
+	assert(net_ctx);
+	assert(rx_ctx);
 	assert(dev);
 
-	if (_pcap)
-		return pcap_get_selectable_fd(_pcap);
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->net_ctx = net_ctx;
+	ctx->rx_ctx = rx_ctx;
+	ctx->fd = -1;
 
-	_pcap = pcap_create(dev, _errbuf);
-	if (_pcap == NULL) {
-		p_err("Cannot initialize pcap: %s\n", _errbuf);
+	pcap = pcap_create(dev, errbuf);
+	if (pcap == NULL) {
+		p_err("Cannot initialize pcap: %s\n", errbuf);
 		goto err;
 	}
-	if (pcap_set_buffer_size(_pcap, rcv_buf_siz) != 0) {
-		p_err("Cannot set buffer size: %s\n", pcap_geterr(_pcap));
+	if (pcap_set_buffer_size(pcap, rcv_buf_siz) != 0) {
+		p_err("Cannot set buffer size: %s\n", pcap_geterr(pcap));
 		goto err;
 	}
-	if (pcap_set_snaplen(_pcap, PCAP_MTU) != 0) {
-		p_err("Cannot set snap length: %s\n", pcap_geterr(_pcap));
+	if (pcap_set_snaplen(pcap, PCAP_MTU) != 0) {
+		p_err("Cannot set snap length: %s\n", pcap_geterr(pcap));
 		goto err;
 	}
-	if (pcap_set_promisc(_pcap, 1) != 0) {
-		p_err("Cannot set promisc: %s\n", pcap_geterr(_pcap));
+	if (pcap_set_promisc(pcap, 1) != 0) {
+		p_err("Cannot set promisc: %s\n", pcap_geterr(pcap));
 		goto err;
 	}
-	if (pcap_set_timeout(_pcap, -1) != 0) {
-		p_err("Cannot set timeout: %s\n", pcap_geterr(_pcap));
+	if (pcap_set_timeout(pcap, -1) != 0) {
+		p_err("Cannot set timeout: %s\n", pcap_geterr(pcap));
 		goto err;
 	}
-	if (pcap_set_immediate_mode(_pcap, 1) != 0) {
-		p_err("Cannot set immediate mode: %s\n", pcap_geterr(_pcap));
+	if (pcap_set_immediate_mode(pcap, 1) != 0) {
+		p_err("Cannot set immediate mode: %s\n", pcap_geterr(pcap));
 		goto err;
 	}
-	if (pcap_activate(_pcap) != 0) {
-		p_err("Cannot activate: %s\n", pcap_geterr(_pcap));
+	if (pcap_activate(pcap) != 0) {
+		p_err("Cannot activate: %s\n", pcap_geterr(pcap));
 		goto err;
 	}
-	if (pcap_setnonblock(_pcap, 1, _errbuf) != 0) {
-		p_err("Cannot activate: %s\n", _errbuf);
+	if (pcap_setnonblock(pcap, 1, errbuf) != 0) {
+		p_err("Cannot activate: %s\n", errbuf);
 		goto err;
 	}
 
-	link_encap = pcap_datalink(_pcap);
+	link_encap = pcap_datalink(pcap);
 	name = pcap_datalink_val_to_name(link_encap);
 	desc = pcap_datalink_val_to_description_or_dlt(link_encap);
-	p_info("Link Encap:  %s(%s)\n", name ? name : "Unknown", desc);
+	p_debug("Link Encap:  %s(%s)\n", name ? name : "Unknown", desc);
 	if (link_encap != DLT_IEEE802_11_RADIO) {
 		p_err("Not an IEEE802.11 device.\n");
 		goto err;
 	}
 
-	if (netpcap_filter_initialize(_pcap, channel_id) < 0) {
+	if (netpcap_filter_initialize(pcap, channel_id) < 0) {
 		p_err("Cannot initialize filter.\n");
 		goto err;
 	}
 
-	return pcap_get_selectable_fd(_pcap);
+	ctx->pcap = pcap;
+	ctx->fd = pcap_get_selectable_fd(pcap);
+	ctx->ev = netcore_rx_event_add(net_ctx, ctx->fd, netpcap_rx, ctx);
+	if (ctx->ev == NULL) {
+		p_err("Cannot register event.^n");
+		goto err;
+	}
+
+	return ctx->fd;
 err:
-	if (_pcap)
-		pcap_close(_pcap);
-	_pcap = NULL;
+	if (pcap)
+		pcap_close(pcap);
 	return -1;
 }
 
-static ssize_t
-netpcap_recv(struct pcap_pkthdr **hdr, void **rxbuf)
+void
+netpcap_deinitialize(struct netpcap_context *ctx)
 {
-	if (hdr == NULL || rxbuf == NULL)
-		return -1;
+	assert(ctx);
 
-	if (pcap_next_ex(_pcap, hdr, (const u_char **)rxbuf) != 1) {
-		p_err("pcap_next() failed: %s\n", pcap_geterr(_pcap));
-		return -1;
+	if (ctx->ev) {
+		event_del(ctx->ev);
+		event_free(ctx->ev);
+		ctx->ev = NULL;
 	}
-	if ((*hdr)->caplen < (*hdr)->len) {
-		p_info("packet is trancated.\n");
+	if (ctx->pcap) {
+		pcap_close(ctx->pcap);
+		ctx->pcap = NULL;
+		ctx->fd = -1;
 	}
-
-	return (ssize_t)((*hdr)->caplen);
-}
-
-static void
-netpcap_rx_one(evutil_socket_t fd, short event, void *arg)
-{
-	struct netpcap_context *ctx = (struct netpcap_context *)arg;
-	struct pcap_pkthdr *hdr;
-	void *rxbuf;
-	ssize_t rxlen;
-
-	rxlen = netpcap_recv(&hdr, &rxbuf);
-	if (rxlen < 0) {
-		p_err("recv_pcap() failed.\n");
-		if (event_base_loopcontinue(ctx->base) < 0) {
-			event_base_loopbreak(ctx->base);
-		}
-		return;
-	}
-	if (ctx->cb)
-		ctx->cb(rxbuf, rxlen, ctx->cb_arg);
-
-	return;
-}
-
-int
-netpcap_rx_start(int fd, int (*cb)(void *, size_t, void *), void *arg)
-{
-	struct netpcap_context ctx;
-
-	ctx.base = event_base_new();
-	ctx.fifo = event_new(ctx.base, fd, EV_READ|EV_PERSIST,
-	    netpcap_rx_one, (void *)&ctx);
-	ctx.cb = cb;
-	ctx.cb_arg = arg;
-
-	event_add(ctx.fifo, NULL);
-	event_base_dispatch(ctx.base);
-	// infinite loop
-	event_free(ctx.fifo);
-	event_base_free(ctx.base);
-	p_info("finished.\n");
-
-	return 0;
 }

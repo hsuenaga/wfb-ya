@@ -5,15 +5,22 @@
 
 extern void __p_info(const char *fmt, ...);
 extern void __p_err(const char *fmt, ...);
+extern void __p_debug(const char *fmt, ...);
+extern int debug;
 
 #define p_info(fmt, ...) do { \
 	__p_info(fmt, ##__VA_ARGS__); \
-} while (0);
+} while (0)
 
 #define p_err(fmt, ...) do { \
 	__p_err("%s: ", __func__); \
 	__p_err(fmt, ##__VA_ARGS__); \
-} while (0);
+} while (0)
+
+#define p_debug(fmt, ...) do { \
+	__p_debug("--Debug-- %s: ", __func__); \
+	__p_debug(fmt, ##__VA_ARGS__); \
+} while (0)
 
 static inline const char *
 s_mac48(uint8_t *m)
