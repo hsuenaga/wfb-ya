@@ -9,14 +9,10 @@ struct decode_h265_context {
 	GstElement *pipeline;
 	GstElement *input_queue;
 	GstElement *source;
-	GstElement *count1;
 	GstElement *rtp;
-	GstElement *count2;
-	GstElement *h265_parse;
 	GstElement *h265;
 	GstElement *conv;
 	GstElement *sink_queue;
-	GstElement *count3;
 	GstElement *sink;
 	GMainLoop *loop;
 

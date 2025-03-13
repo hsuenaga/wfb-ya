@@ -53,9 +53,11 @@ add_executable(wfb_listener
 	${ZFEC_SOURCES}
 )
 
-add_custom_target(set_cap ALL
-	sudo setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' wfb_listener
-)
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	add_custom_target(set_cap ALL
+		sudo setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' wfb_listener
+	)
+endif ()
 
 set_target_properties(wfb_listener PROPERTIES C_STANDARD 99)
 

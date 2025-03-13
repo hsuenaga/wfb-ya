@@ -12,13 +12,16 @@
 
 int
 rx_context_init(struct rx_context *ctx, uint32_t channel_id,
-    void (*cb)(uint8_t *data, size_t size, void *arg), void *arg)
+    void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg,
+    void (*mirror)(uint8_t *data, size_t size, void *arg), void *mirror_arg)
 {
 	assert(ctx);
 
 	memset(ctx, 0, sizeof(*ctx));
-	ctx->cb = cb;
-	ctx->cb_arg = arg;
+	ctx->decode = decode;
+	ctx->decode_arg = decode_arg;
+	ctx->mirror = mirror;
+	ctx->mirror_arg = mirror_arg;
 	ctx->channel_id = channel_id;
 
 	return 0;
@@ -100,6 +103,9 @@ rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen)
 	rxlen -= parsed;
 	if (ctx->channel_id && ctx->channel_id != ctx->ieee80211.channel_id)
 		return -1;
+
+	if (ctx->mirror)
+		ctx->mirror(rxbuf, rxlen, ctx->mirror_arg);
 
 	parsed = wfb_frame_parse(rxbuf, rxlen, &ctx->wfb);
 	if (parsed < 0)

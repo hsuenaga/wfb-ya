@@ -12,6 +12,8 @@
 
 #include <event2/event.h>
 
+#include "compat.h"
+
 #include "wfb_params.h"
 #include "net_inet6.h"
 #include "util_log.h"
@@ -61,7 +63,11 @@ netinet6_initialize(struct netinet6_context *ctx,
 	ctx->net_ctx = net_ctx;
 	ctx->rx_ctx = rx_ctx;
 
+#ifdef SOCK_CLOEXEC
 	s = socket(AF_INET6, SOCK_DGRAM|SOCK_CLOEXEC, 0);
+#else
+	s = socket(AF_INET6, SOCK_DGRAM, 0);
+#endif
 	if (s < 0) {
 		p_err("Socket() failed: %s\n", strerror(errno));
 		return -1;

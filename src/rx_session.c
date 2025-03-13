@@ -5,6 +5,8 @@
 #include <inttypes.h>
 #include <assert.h>
 
+#include "compat.h"
+
 #include "crypto_wfb.h"
 #include "rx_core.h"
 #include "rx_session.h"

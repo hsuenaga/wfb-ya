@@ -30,12 +30,15 @@ struct rx_context {
 	struct rbuf *rx_ring;
 
 	/* callback */
-	void (*cb)(uint8_t *data, size_t size, void *arg);
-	void *cb_arg;
+	void (*decode)(uint8_t *data, size_t size, void *arg);
+	void *decode_arg;
+	void (*mirror)(uint8_t *data, size_t size, void *arg);
+	void *mirror_arg;
 };
 
 extern int rx_context_init(struct rx_context *ctx, uint32_t channel_id,
-    void (*cb)(uint8_t *data, size_t size, void *arg), void *arg);
+    void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg,
+    void (*mirror)(uint8_t *data, size_t size, void *arg), void *mirror_arg);
 extern void rx_context_dump(struct rx_context *ctx);
 extern int rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen);
 extern int rx_frame_udp(struct rx_context *ctx, void *rxbuf, size_t rxlen);

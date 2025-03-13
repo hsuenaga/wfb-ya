@@ -3,11 +3,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
-#include <endian.h>
 #include <assert.h>
 
 #include <radiotap.h>
 #include <radiotap_iter.h>
+
+#include "compat.h"
 
 #include "frame_radiotap.h"
 #include "util_log.h"

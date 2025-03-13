@@ -5,7 +5,6 @@
 #include "util_attribute.h"
 
 #define ETH_ADDR_LEN	6
-#define WFG_SIG		0x5742
 
 #define FTYPE_MGMT		0x0
 #define FTYPE_CTRL		0x1

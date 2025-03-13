@@ -1,6 +1,7 @@
 #ifndef __NET_PCAP_H__
 #define __NET_PCAP_H__
 #include <stdint.h>
+#include <stdbool.h>
 #include <pcap.h>
 #include <event2/event.h>
 
@@ -20,7 +21,7 @@ struct netpcap_context {
 extern int netpcap_initialize(struct netpcap_context *ctx,
     struct netcore_context *net_ctx,
     struct rx_context *rx_ctx,
-    const char *dev, uint32_t channel_id);
+    const char *dev, uint32_t channel_id, bool use_monitor);
 extern void netpcap_deinitialize(struct netpcap_context *ctx);
 
 #endif /* __NET_PCAP_H__ */

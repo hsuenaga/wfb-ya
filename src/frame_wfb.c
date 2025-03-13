@@ -5,6 +5,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include "compat.h"
+
 #include "frame_wfb.h"
 #include "crypto_wfb.h"
 #include "util_log.h"

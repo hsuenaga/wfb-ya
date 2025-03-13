@@ -9,25 +9,6 @@
 #include "decode_h265.h"
 #include "util_log.h"
 
-static void
-frame_count_callback(GstElement *elem, GstPad *pad, gpointer arg)
-{
-	struct decode_h265_context *ctx = arg;
-
-	if (elem == ctx->count1) {
-		fprintf(stderr, "1");
-	}
-	else if (elem == ctx->count2) {
-		fprintf(stderr, "2");
-	}
-	else if (elem == ctx->count3) {
-		fprintf(stderr, "3");
-	}
-	else {
-		fprintf(stderr, "?");
-	}
-}
-
 static void *
 loop(void *arg)
 {
@@ -85,7 +66,8 @@ bus_call(GstBus *bus, GstMessage *msg, gpointer arg)
 		case GST_MESSAGE_ASYNC_DONE:
 			break;
 		default:
-			p_err("Unhandled message %s\n",
+			p_err("Unhandled message %s => %s\n",
+			   GST_OBJECT_NAME(msg->src),
 			   GST_MESSAGE_TYPE_NAME(msg));
 			break;
 	}
@@ -103,12 +85,13 @@ decode_h265_context_init(struct decode_h265_context *ctx)
 	assert(ctx);
 	memset(ctx, 0, sizeof(*ctx));
 
+	p_debug("Initializing gst\n");
 	gst_init(NULL, NULL);
 
+	p_debug("setup gst\n");
 	ctx->input_queue = gst_element_factory_make("queue", "input_queue");
 	ctx->source = gst_element_factory_make("appsrc", "source");
 	ctx->rtp = gst_element_factory_make("rtph265depay", "rtp");
-	ctx->h265_parse = gst_element_factory_make("h265parse", "h265_parse");
 	ctx->h265 = gst_element_factory_make("v4l2slh265dec", "h265");
 	if (!ctx->h265)
 		ctx->h265 = gst_element_factory_make("avdec_h265", "h265");
@@ -116,45 +99,26 @@ decode_h265_context_init(struct decode_h265_context *ctx)
 		ctx->h265 = gst_element_factory_make("libde265dec", "h265");
 	ctx->conv = gst_element_factory_make("videoconvert", "conv");
 	ctx->sink_queue = gst_element_factory_make("queue", "sink_queue");
-//	ctx->sink = gst_element_factory_make("autovideosink", "sink");
-	ctx->sink = gst_element_factory_make("fakesink", "sink");
+	ctx->sink = gst_element_factory_make("autovideosink", "sink");
 
 	ctx->pipeline = gst_pipeline_new("main-pipeline");
-
-	ctx->count1 = gst_element_factory_make("identity", "count1");
-	g_signal_connect(G_OBJECT(ctx->count1), "handoff",
-	   G_CALLBACK(frame_count_callback), ctx);
-	ctx->count2 = gst_element_factory_make("identity", "count2");
-	g_signal_connect(G_OBJECT(ctx->count2), "handoff",
-	   G_CALLBACK(frame_count_callback), ctx);
-	ctx->count3 = gst_element_factory_make("identity", "count3");
-	g_signal_connect(G_OBJECT(ctx->count3), "handoff",
-	   G_CALLBACK(frame_count_callback), ctx);
 
 	gst_bin_add_many(GST_BIN(ctx->pipeline),
 	    ctx->source,
 	    ctx->input_queue,
-	    ctx->count1,
 	    ctx->rtp,
-	    ctx->count2,
-	    ctx->h265_parse,
 	    ctx->h265,
 	    ctx->conv,
 	    ctx->sink_queue,
-	    ctx->count3,
 	    ctx->sink,
 	    NULL);
 	gst_element_link_many(
 	    ctx->source,
 	    ctx->input_queue,
-//	    ctx->count1,
 	    ctx->rtp,
-//	    ctx->count2,
-	    ctx->h265_parse,
 	    ctx->h265,
 	    ctx->conv,
 	    ctx->sink_queue,
-//	    ctx->count3,
 	    ctx->sink,
 	    NULL);
 
@@ -172,6 +136,9 @@ decode_h265_context_init(struct decode_h265_context *ctx)
 	g_object_set(ctx->source, "is-live", TRUE, NULL);
 	gst_caps_unref(caps);
 
+	g_object_set(ctx->sink, "sync", FALSE, NULL);
+
+	p_debug("start playing\n");
 	ret = gst_element_set_state(ctx->pipeline, GST_STATE_PLAYING);
 	if (ret == GST_STATE_CHANGE_FAILURE) {
 		p_err("Unable to set the pipeline to the playing state.\n");
@@ -219,7 +186,6 @@ decode_h265(uint8_t *data, size_t size, void *arg)
 
 	g_signal_emit_by_name(ctx->source, "push-buffer", buf, &ret);
 	gst_buffer_unref(buf);
-	fprintf(stderr, ".");
 
 	return;
 }

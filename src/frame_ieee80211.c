@@ -5,6 +5,9 @@
 
 #include <string.h>
 
+#include "compat.h"
+#include "wfb_params.h"
+
 #include "frame_ieee80211.h"
 #include "util_log.h"
 
@@ -121,7 +124,7 @@ ieee80211_frame_parse(void *data, size_t size, struct ieee80211_context *ctx)
 	ctx->channel_id = get_channel_id(ctx->hdr->u.base3.addr2);
 
 	switch (ctx->wfb_signature) {
-		case WFG_SIG:
+		case WFB_SIG:
 			break;
 		default:
 			p_err("Unknown signature\n");

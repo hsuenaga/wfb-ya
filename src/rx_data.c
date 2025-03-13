@@ -7,6 +7,8 @@
 #include <alloca.h>
 #include <assert.h>
 
+#include "compat.h"
+
 #include "frame_wfb.h"
 #include "crypto_wfb.h"
 #include "rx_core.h"
@@ -44,8 +46,8 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 	}
 
 
-	if (ctx->cb)
-		ctx->cb((uint8_t *)(hdr + 1), pktlen, ctx->cb_arg);
+	if (ctx->decode)
+		ctx->decode((uint8_t *)(hdr + 1), pktlen, ctx->decode_arg);
 	else
 		p_info("Received %lu: %d bytes, BLK %" PRIu64
 		    ", FRAG %02x, FEC: %s\n",

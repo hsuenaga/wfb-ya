@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <assert.h>
 
@@ -84,7 +85,7 @@ int
 netpcap_initialize(struct netpcap_context *ctx,
     struct netcore_context *net_ctx,
     struct rx_context *rx_ctx,
-    const char *dev, uint32_t channel_id)
+    const char *dev, uint32_t channel_id, bool use_monitor)
 {
 	pcap_t *pcap = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE] = {'\0'};
@@ -115,11 +116,19 @@ netpcap_initialize(struct netpcap_context *ctx,
 		p_err("Cannot set snap length: %s\n", pcap_geterr(pcap));
 		goto err;
 	}
-	if (pcap_set_promisc(pcap, 1) != 0) {
-		p_err("Cannot set promisc: %s\n", pcap_geterr(pcap));
-		goto err;
+	if (use_monitor) {
+		if (pcap_set_rfmon(pcap, 1) != 0) {
+			p_err("Cannot set rfmon: %s\n", pcap_geterr(pcap));
+			goto err;
+		}
 	}
-	if (pcap_set_timeout(pcap, -1) != 0) {
+	else {
+		if (pcap_set_promisc(pcap, 1) != 0) {
+			p_err("Cannot set promisc: %s\n", pcap_geterr(pcap));
+			goto err;
+		}
+	}
+	if (pcap_set_timeout(pcap, 0) != 0) {
 		p_err("Cannot set timeout: %s\n", pcap_geterr(pcap));
 		goto err;
 	}
