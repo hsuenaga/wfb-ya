@@ -49,7 +49,7 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 	if (ctx->decode)
 		ctx->decode((uint8_t *)(hdr + 1), pktlen, ctx->decode_arg);
 	else
-		p_info("Received %lu: %d bytes, BLK %" PRIu64
+		p_debug("Received %lu: %d bytes, BLK %" PRIu64
 		    ", FRAG %02x, FEC: %s\n",
 		    seq, pktlen, blk->index, blk->fragment_to_send,
 		    is_fec ? "YES" : "NO");

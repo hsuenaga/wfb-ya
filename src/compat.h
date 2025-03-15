@@ -27,5 +27,6 @@
 #define DEF_WRX "wlan1"
 #define DEF_ERX NULL
 #define DEF_KEY "./gs.key"
+extern char *basename_r(const char *path, char *bname);
 #endif
 #endif /* __COMPAT_H__ */

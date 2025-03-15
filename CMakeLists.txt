@@ -49,6 +49,7 @@ add_executable(wfb_listener
 	src/decode_h265.c
 	src/util_log.c
 	src/util_rbuf.c
+	src/compat.c
 	${RADIOTAP_SOURCES}
 	${ZFEC_SOURCES}
 )
