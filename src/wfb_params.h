@@ -1,5 +1,6 @@
 #ifndef __WFB_PARAMS_H__
 #define __WFB_PARAMS_H__
+#include <stdint.h>
 #include <stdbool.h>
 
 // Ring buffer
