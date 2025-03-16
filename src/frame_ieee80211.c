@@ -50,6 +50,29 @@ get_channel_id(uint8_t *addr)
 }
 
 void
+ieee80211_tx_context_initialize(struct ieee80211_tx_context *ctx,
+    uint8_t *dst, uint8_t *src, uint8_t *bssid)
+{
+	struct ieee80211_header *hdr;
+
+	assert(ctx);
+	memset(ctx, 0, sizeof(*ctx));
+
+	hdr = &ctx->hdr;
+	hdr->frame_control = (FTYPE_DATA << 2) | (DTYPE_DATA << 4);
+	hdr->frame_control = htole16(hdr->frame_control);
+	hdr->duration_id = 0;
+
+	memcpy(hdr->u.base3.addr1, dst, sizeof(hdr->u.base3.addr1));
+	memcpy(hdr->u.base3.addr2, src, sizeof(hdr->u.base3.addr2));
+	memcpy(hdr->u.base3.addr3, bssid, sizeof(hdr->u.base3.addr3));
+	hdr->u.base3.seq_ctrl = 0;
+
+	ctx->tx_iov.iov_base = (char *)hdr;
+	ctx->tx_iov.iov_len = sizeof(*hdr);
+}
+
+void
 ieee80211_context_dump(const struct ieee80211_context *ctx)
 {
 	assert(ctx);

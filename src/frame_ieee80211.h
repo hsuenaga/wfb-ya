@@ -1,6 +1,8 @@
 #ifndef __FRAME_IEEE80211_H__
 #define __FRAME_IEEE80211_H__
 #include <stdint.h>
+#include <unistd.h>
+#include <sys/uio.h>
 
 #include "util_attribute.h"
 
@@ -30,7 +32,6 @@ struct ieee80211_header {
 			uint8_t addr2[ETH_ADDR_LEN];
 			uint8_t addr3[ETH_ADDR_LEN];
 			uint16_t seq_ctrl;
-			uint8_t variable[];
 		} base3 __packed;
 		struct {
 			uint8_t addr1[ETH_ADDR_LEN];
@@ -38,7 +39,6 @@ struct ieee80211_header {
 			uint8_t addr3[ETH_ADDR_LEN];
 			uint16_t seq_ctrl;
 			uint16_t qos_ctrl;
-			uint8_t variable[];
 		} qos3 __packed;
 		struct {
 			uint8_t addr1[ETH_ADDR_LEN];
@@ -47,19 +47,17 @@ struct ieee80211_header {
 			uint16_t seq_ctrl;
 			uint8_t addr4[ETH_ADDR_LEN];
 			uint16_t qos_ctrl;
-			uint8_t variable[];
 		} qos4 __packed;
 		struct {
 			uint8_t ra[ETH_ADDR_LEN];
 			uint8_t ta[ETH_ADDR_LEN];
 			uint64_t common_info;
-			uint8_t variable[];
 		} trigger __packed;
 	} u;
 } __packed;
 
 #define IEEE80211_DATA_HDRLEN \
-    (offsetof(struct ieee80211_header, u.base3.variable))
+    (offsetof(struct ieee80211_header, u.base3.seq_ctrl) + sizeof(uint16_t))
 
 struct ieee80211_context {
 	struct ieee80211_header *hdr;
@@ -68,6 +66,13 @@ struct ieee80211_context {
 	uint32_t channel_id;
 };
 
+struct ieee80211_tx_context {
+	struct ieee80211_header hdr;
+	struct iovec tx_iov;
+};
+
+extern void ieee80211_tx_context_initialize(struct ieee80211_tx_context *ctx,
+    uint8_t *dst, uint8_t *src, uint8_t *bssid);
 extern void ieee80211_context_dump(const struct ieee80211_context *ctx);
 extern ssize_t ieee80211_frame_parse(void *data, size_t size,
     struct ieee80211_context *ctx);

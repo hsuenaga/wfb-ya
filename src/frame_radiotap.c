@@ -14,6 +14,65 @@
 #include "util_log.h"
 
 void
+radiotap_tx_context_initialize(struct radiotap_tx_context *ctx,
+    struct radiotap_params *param)
+{
+	struct ieee80211_radiotap_header *hdr;
+	uint8_t *payload;
+
+	assert(ctx);
+	memset(ctx, 0, sizeof(*ctx));
+
+#define EMBED_ARG(bit, arg) do { \
+	if (param->arg) { \
+		assert((hdr->it_len + sizeof(*param->arg)) \
+		    < sizeof(ctx->tx_data)); \
+		hdr->it_present |= (1 << bit); \
+		memcpy(payload, param->arg, sizeof(*param->arg)); \
+		payload += sizeof(*param->arg); \
+		hdr->it_len += sizeof(*param->arg); \
+	} \
+} while (0)
+
+	hdr = (struct ieee80211_radiotap_header *)ctx->tx_data;
+	payload = (uint8_t *)(hdr + 1);
+	
+	hdr->it_version = 0;
+	hdr->it_pad = 0;
+	hdr->it_len = sizeof(*hdr);
+	hdr->it_present = 0;
+
+	EMBED_ARG(IEEE80211_RADIOTAP_TSFT, tsft);
+	EMBED_ARG(IEEE80211_RADIOTAP_FLAGS, flags);
+	EMBED_ARG(IEEE80211_RADIOTAP_RATE, rate);
+	EMBED_ARG(IEEE80211_RADIOTAP_CHANNEL, channel);
+	EMBED_ARG(IEEE80211_RADIOTAP_FHSS, fhss);
+	EMBED_ARG(IEEE80211_RADIOTAP_DBM_ANTSIGNAL, dbm_antenna_signal);
+	EMBED_ARG(IEEE80211_RADIOTAP_DBM_ANTNOISE, dbm_antenna_noise);
+	EMBED_ARG(IEEE80211_RADIOTAP_LOCK_QUALITY, lock_quality);
+	EMBED_ARG(IEEE80211_RADIOTAP_TX_ATTENUATION, tx_att);
+	EMBED_ARG(IEEE80211_RADIOTAP_DB_TX_ATTENUATION, db_tx_att);
+	EMBED_ARG(IEEE80211_RADIOTAP_DBM_TX_POWER, tx_power);
+	EMBED_ARG(IEEE80211_RADIOTAP_ANTENNA, antenna);
+	EMBED_ARG(IEEE80211_RADIOTAP_DB_ANTSIGNAL, db_antenna_signal);
+	EMBED_ARG(IEEE80211_RADIOTAP_DB_ANTNOISE, db_antenna_noise);
+	EMBED_ARG(IEEE80211_RADIOTAP_RX_FLAGS, rx_flags);
+	EMBED_ARG(IEEE80211_RADIOTAP_TX_FLAGS, tx_flags);
+	EMBED_ARG(IEEE80211_RADIOTAP_RTS_RETRIES, rts_retries);
+	EMBED_ARG(IEEE80211_RADIOTAP_DATA_RETRIES, data_retries);
+	EMBED_ARG(IEEE80211_RADIOTAP_MCS, mcs);
+	EMBED_ARG(IEEE80211_RADIOTAP_AMPDU_STATUS, ampdu);
+	EMBED_ARG(IEEE80211_RADIOTAP_VHT, vht);
+	EMBED_ARG(IEEE80211_RADIOTAP_TIMESTAMP, timestamp);
+
+	ctx->tx_iov.iov_base = (char *)hdr;
+	ctx->tx_iov.iov_len = hdr->it_len;
+
+	hdr->it_len = htole16(hdr->it_len);
+	hdr->it_present = htole32(hdr->it_present);
+}
+
+void
 radiotap_context_dump(const struct radiotap_context *ctx)
 {
 	assert(ctx);

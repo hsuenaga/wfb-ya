@@ -2,6 +2,11 @@
 #define __FRAME_RADIOTAP_H__
 #include <stdint.h>
 #include <stdbool.h>
+#include <unistd.h>
+#include <radiotap.h>
+
+#include <sys/uio.h>
+
 #include "util_attribute.h"
 
 struct radiotap_channel {
@@ -103,10 +108,10 @@ struct radiotap_eht {
 } __packed;
 
 struct radiotap_context {
-	bool			has_fcs;
-	bool			bad_fcs;
+	bool has_fcs;
+	bool bad_fcs;
 
-	struct {
+	struct radiotap_params {
 		// Little endian.
 		uint64_t *tsft;				// bit 0
 		uint8_t *flags;				// bit 1
@@ -149,6 +154,14 @@ struct radiotap_context {
 	} raw;
 };
 
+struct radiotap_tx_context {
+	uint8_t tx_data[sizeof(struct ieee80211_radiotap_header) +
+	    sizeof(struct radiotap_params)];
+	struct iovec tx_iov;
+};
+
+extern void radiotap_tx_context_initialize(struct radiotap_tx_context *ctx,
+    struct radiotap_params *param);
 extern void radiotap_context_dump(const struct radiotap_context *ctx);
 extern ssize_t radiotap_frame_parse(void *data, size_t size,
     struct radiotap_context *ctx);
