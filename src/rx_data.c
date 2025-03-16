@@ -8,6 +8,7 @@
 #include <assert.h>
 
 #include "compat.h"
+#include "wfb_params.h"
 
 #include "frame_wfb.h"
 #include "crypto_wfb.h"
@@ -32,7 +33,7 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 
 	if (last_seq > 0) {
 		if (seq > last_seq + 1) {
-			p_info("Missing Frame: %d\n",
+			p_debug("Missing Frame: %d\n",
 			   seq - last_seq - 1);
 		}
 	}
@@ -168,7 +169,8 @@ data_add(struct rx_context *ctx, struct rbuf_block *blk)
 	assert(rbuf_block_is_front(blk));
 
 	if (blk->fragment_to_send < ctx->fec_k &&
-	    blk->fragment_used == ctx->fec_k) {
+	    blk->fragment_used == ctx->fec_k &&
+	    !options.no_fec) {
 		// some frames are lost, but we can recover those using FEC.
 		int fec_count = 0;
 		int i;
@@ -178,7 +180,7 @@ data_add(struct rx_context *ctx, struct rbuf_block *blk)
 				fec_count++;
 		}
 		if (fec_count) {
-//			p_info("Recover %d frames using FEC\n", fec_count);
+			p_debug("Recover %d frames using FEC\n", fec_count);
 			data_recovery(ctx, blk);
 		}
 

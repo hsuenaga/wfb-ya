@@ -1,5 +1,6 @@
 #ifndef __WFB_PARAMS_H__
 #define __WFB_PARAMS_H__
+#include <stdbool.h>
 
 // Ring buffer
 #define RX_RING_SIZE	40
@@ -17,5 +18,19 @@
 #define WFB_ADDR6	"ff02::5742"
 #define WFB_PORT	5742
 #define MAX_BLOCK_IDX	((1LLU << 55) - 1)
+
+struct wfb_opt {
+	const char *rx_wireless;
+	const char *txrx_wired;
+	const char *key_file;
+	const char *mc_addr;
+	uint16_t mc_port;
+	bool local_play;
+	bool use_monitor;
+	bool no_fec;
+	bool debug;
+};
+
+extern struct wfb_opt options;
 
 #endif /* __WFB_PARAMS_H__ */

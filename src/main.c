@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <limits.h>
+#include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
 #include <libgen.h>
@@ -14,6 +17,7 @@
 
 #include "compat.h"
 
+#include "wfb_params.h"
 #include "net_core.h"
 #include "net_pcap.h"
 #include "net_inet6.h"
@@ -23,13 +27,17 @@
 #include "decode_h265.h"
 #include "util_log.h"
 
-struct wfb_opt {
-	const char *rx_wireless;
-	const char *txrx_wired;
-	const char *key_file;
-	bool local_play;
-	bool use_monitor;
-} options;
+struct wfb_opt options = {
+	.rx_wireless = DEF_WRX,
+	.txrx_wired = DEF_ERX,
+	.key_file = DEF_KEY,
+	.mc_addr = WFB_ADDR6,
+	.mc_port = WFB_PORT,
+	.local_play = false,
+	.use_monitor = false,
+	.no_fec =false,
+	.debug = false
+};
 
 static void
 print_help(const char *path)
@@ -42,16 +50,23 @@ print_help(const char *path)
 	printf("%s -- WFB-NG based Rx and Multicast Tx\n", name);
 	printf("\n");
 	printf("Synopsis:\n");
-	printf("\t%s [-w <dev>] [-e <dev>] [-k <file>] [-l] [-m] [-d]\n", name);
+	printf("\t%s [-w <dev>] [-e <dev>] [-a <addr>] [-p <port>] [-k <file>]\n",
+	    name);
+	printf("\t    [-l] [-m] [-n] [-d] [-h]\n");
 	printf("Options:\n");
 	printf("\t-w <dev> ... specify Wireless Rx device. default: %s\n",
 	    DEF_WRX ? DEF_WRX : "none");
 	printf("\t-e <dev> ... specify Ethernet Tx/Rx device. default: %s\n",
 	    DEF_ERX ? DEF_ERX : "none");
+	printf("\t-a <addr> ... specify Multicast address . default: %s\n",
+	    WFB_ADDR6);
+	printf("\t-p <port> ... specify Multicast port . default: %u\n",
+	    WFB_PORT);
 	printf("\t-k <file> ... specify cipher key. default: %s\n",
 	    DEF_KEY ? DEF_KEY : "none");
 	printf("\t-l ... enable local play. default: disable\n");
 	printf("\t-m ... use RFMonitor mode instead of Promiscous mode.\n");
+	printf("\t-n ... don't apply FEC decode.\n");
 	printf("\t-d ... enable debug output.\n");
 	printf("\t-h ... print help(this).\n");
 	printf("\n");
@@ -65,18 +80,27 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	options.rx_wireless = DEF_WRX;
-	options.txrx_wired = DEF_ERX;
-	options.key_file = DEF_KEY;
-	debug = 0;
+	while ((ch = getopt(argc, argv, "w:e:a:p:k:lmndh")) != -1) {
+		long val;
 
-	while ((ch = getopt(argc, argv, "w:e:k:lmdh")) != -1) {
 		switch (ch) {
 			case 'w':
 				options.rx_wireless = optarg;
 				break;
 			case 'e':
 				options.txrx_wired = optarg;
+				break;
+			case 'a':
+				options.mc_addr = optarg;
+				break;
+			case 'p':
+				val = strtol(optarg, NULL, 10);
+				if (val <= 0 || val > 0xffff) {
+					fprintf(stderr,
+					    "Invalid port %s\n", optarg);
+					exit(0);
+				}
+				options.mc_port = (uint16_t)val;
 				break;
 			case 'k':
 				options.key_file = optarg;
@@ -87,8 +111,11 @@ parse_options(int *argc0, char **argv0[])
 			case 'm':
 				options.use_monitor = true;
 				break;
+			case 'n':
+				options.no_fec = true;
+				break;
 			case 'd':
-				debug = 1;
+				options.debug = true;
 				break;
 			case 'h':
 			case '?':
