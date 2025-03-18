@@ -71,6 +71,13 @@ target_include_directories(wfb_listener PUBLIC
 	${GSTREAMER_INCLUDE_DIRS}
 )
 
+target_link_directories(wfb_listener PUBLIC
+	${LIBEVENT_LIBRARY_DIRS}
+	${LIBPCAP_LIBRARY_DIRS}
+	${LIBSODIUM_LIBRARY_DIRS}
+	${GSTREAMER_LIBRARY_DIRS}
+)
+
 target_link_libraries(wfb_listener
 	${LIBEVENT_LIBRARIES}
 	${LIBPCAP_LIBRARIES}
