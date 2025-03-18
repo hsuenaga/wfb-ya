@@ -18,6 +18,8 @@ How to Compile:
 This project will be compiled using cmake.
 
 ```
+% git submodule init
+% git submodule update
 % cmake -B build
 % cd build
 % make
