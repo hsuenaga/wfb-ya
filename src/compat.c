@@ -13,7 +13,7 @@ static pthread_mutex_t bn_lock = PTHREAD_MUTEX_INITIALIZER;
 
 char *basename_r(const char *path, char *bname)
 {
-	char bnbuf[MAXPATHLEN];
+	char bnbuf[MAXPATHLEN + 1];
 	char *bn;
 
 	if (!path || !bname)
