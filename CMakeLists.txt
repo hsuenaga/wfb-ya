@@ -69,6 +69,9 @@ add_executable(wfb_listener
 	${wfb_listener_srcs}
 )
 
+install(TARGETS wfb_listener
+)
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_custom_target(set_cap
 		sudo setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' wfb_listener
