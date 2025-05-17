@@ -92,7 +92,7 @@ rbuf_get_block(struct rbuf *rbuf, uint64_t block_idx)
 {
 	int new_blocks;
 	uint64_t allocate_start;
-	size_t idx;
+	size_t idx = 0;
 	int i;
 
 	assert(rbuf);
