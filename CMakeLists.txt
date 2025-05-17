@@ -32,7 +32,12 @@ set (WFB_CFLAGS_OTHER
 	"-g"
 )
 
-add_executable(wfb_listener
+option(ENABLE_GSTREAMER "Enable Video decoding using gstreamer" OFF)
+if (ENABLE_GSTREAMER)
+	add_definitions(-DENABLE_GSTREAMER)
+endif ()
+
+set(wfb_listener_srcs
 	src/main.c
 	src/net_core.c
 	src/net_pcap.c
@@ -46,12 +51,22 @@ add_executable(wfb_listener
 	src/frame_wfb.c
 	src/crypto_wfb.c
 	src/fec_wfb.c
-	src/decode_h265.c
 	src/util_log.c
 	src/util_rbuf.c
 	src/compat.c
 	${RADIOTAP_SOURCES}
 	${ZFEC_SOURCES}
+)
+
+if (ENABLE_GSTREAMER)
+	set(wfb_listener_srcs
+		${wfb_listener_srcs}
+		src/decode_h265.c
+	)
+endif ()
+
+add_executable(wfb_listener
+	${wfb_listener_srcs}
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")

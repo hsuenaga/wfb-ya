@@ -24,7 +24,10 @@
 #include "rx_core.h"
 #include "crypto_wfb.h"
 #include "fec_wfb.h"
+#ifdef ENABLE_GSTREAMER
 #include "decode_h265.h"
+#endif
+
 #include "util_log.h"
 
 struct wfb_opt options = {
@@ -64,7 +67,9 @@ print_help(const char *path)
 	    WFB_PORT);
 	printf("\t-k <file> ... specify cipher key. default: %s\n",
 	    DEF_KEY ? DEF_KEY : "none");
+#ifdef ENABLE_GSTREAMER
 	printf("\t-l ... enable local play. default: disable\n");
+#endif
 	printf("\t-m ... use RFMonitor mode instead of Promiscous mode.\n");
 	printf("\t-n ... don't apply FEC decode.\n");
 	printf("\t-d ... enable debug output.\n");
@@ -106,7 +111,12 @@ parse_options(int *argc0, char **argv0[])
 				options.key_file = optarg;
 				break;
 			case 'l':
+#ifdef ENABLE_GSTREAMER
 				options.local_play = true;
+#else
+				fprintf(stderr, "gstreamer is disabled by compile option.\n");
+				exit(0);
+#endif
 				break;
 			case 'm':
 				options.use_monitor = true;
@@ -145,7 +155,9 @@ _main(int argc, char *argv[])
 	struct netpcap_context pcap_ctx;
 	struct netinet6_context in6_ctx;
 	struct rx_context rx_ctx;
+#ifdef ENABLE_GSTREAMER
 	struct decode_h265_context d_ctx;
+#endif
 	uint32_t wfb_ch = 0;
 	int fd;
 
@@ -169,6 +181,7 @@ _main(int argc, char *argv[])
 		exit(0);
 	}
 
+#ifdef ENABLE_GSTREAMER
 	if (options.local_play) {
 		p_debug("Initalizing decoder.\n");
 		if (decode_h265_context_init(&d_ctx) < 0) {
@@ -176,8 +189,10 @@ _main(int argc, char *argv[])
 			exit(0);
 		}
 	}
+#endif
 
 	p_debug("Initalizing rx.\n");
+#ifdef ENABLE_GSTREAMER
 	if (options.local_play) {
 		if (rx_context_init(&rx_ctx, wfb_ch,
 		    decode_h265, &d_ctx, NULL, NULL) < 0) {
@@ -185,7 +200,9 @@ _main(int argc, char *argv[])
 			exit(0);
 		}
 	}
-	else if (options.txrx_wired) {
+	else
+#endif
+	if (options.txrx_wired) {
 		if (rx_context_init(&rx_ctx, wfb_ch,
 		    NULL, NULL, netinet6_tx, &in6_ctx) < 0) {
 			p_err("Cannot Initialize Rx\n");
