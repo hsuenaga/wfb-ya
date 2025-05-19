@@ -2,12 +2,20 @@ cmake_minimum_required(VERSION 3.25.1)
 
 project(wifibroadcast_listener C)
 
+## Compile Options
+option(ENABLE_GSTREAMER "Enable Video decoding using gstreamer" OFF)
+if (ENABLE_GSTREAMER)
+	add_definitions(-DENABLE_GSTREAMER)
+endif ()
+
 ## packages defined by pkg-config
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBEVENT REQUIRED libevent)
 pkg_check_modules(LIBPCAP REQUIRED libpcap)
 pkg_check_modules(LIBSODIUM REQUIRED libsodium)
-pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
+if (ENABLE_GSTREAMER)
+	pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
+endif ()
 
 ## External module radiotap-libary
 set (RADIOTAP_DIR "${CMAKE_SOURCE_DIR}/external/radiotap-library")
@@ -32,11 +40,6 @@ set (WFB_CFLAGS_OTHER
 	"-g"
 )
 
-option(ENABLE_GSTREAMER "Enable Video decoding using gstreamer" OFF)
-if (ENABLE_GSTREAMER)
-	add_definitions(-DENABLE_GSTREAMER)
-endif ()
-
 set(wfb_listener_srcs
 	src/main.c
 	src/net_core.c
@@ -58,10 +61,54 @@ set(wfb_listener_srcs
 	${ZFEC_SOURCES}
 )
 
+set (wfb_listener_incs
+	${ZFEC_INCLUDE_DIRS}
+	${RADIOTAP_INCLUDE_DIRS}
+	${LIBEVENT_INCLUDE_DIRS}
+	${LIBPCAP_INCLUDE_DIRS}
+	${LIBSODIUM_INCLUDE_DIRS}
+)
+
+set (wfb_listener_libdirs
+	${LIBEVENT_LIBRARY_DIRS}
+	${LIBPCAP_LIBRARY_DIRS}
+	${LIBSODIUM_LIBRARY_DIRS}
+)
+
+set (wfb_listener_libs
+	${LIBEVENT_LIBRARIES}
+	${LIBPCAP_LIBRARIES}
+	${LIBSODIUM_LIBRARIES}
+)
+
+set (wfb_listener_cflags
+	${LIBEVENT_CFLAGS_OTHER}
+	${LIBPCAP_CFLAGS_OTHER}
+	${LIBSODIUM_CFLAGS_OTHER}
+	${WFB_CFLAGS_OTHER}
+	${CMAKE_THREAD_LIBS_INIT}
+)
+
 if (ENABLE_GSTREAMER)
-	set(wfb_listener_srcs
+	set (wfb_listener_srcs
 		${wfb_listener_srcs}
 		src/decode_h265.c
+	)
+	set (wfb_listener_incs
+		${wfb_listener_incs}
+		${GSTREAMER_INCLUDE_DIRS}
+	)
+	set (wfb_listener_libdirs
+		${wfb_listener_libdirs}
+		${GSTREAMER_LIBRARY_DIRS}
+	)
+	set (wfb_listener_libs
+		${wfb_listener_libs}
+		${GSTREAMER_LIBRARIES}
+	)
+	set (wfb_listener_cflags
+		${wfb_listener_cflags}
+		${GSTREAMER_CFLAGS_OTHER}
 	)
 endif ()
 
@@ -72,42 +119,27 @@ add_executable(wfb_listener
 install(TARGETS wfb_listener
 )
 
+set_target_properties(wfb_listener PROPERTIES C_STANDARD 99)
+
+target_include_directories(wfb_listener PUBLIC
+	${wfb_listener_incs}
+)
+
+target_link_directories(wfb_listener PUBLIC
+	${wfb_listener_libdirs}
+)
+
+target_link_libraries(wfb_listener
+	${wfb_listener_libs}
+)
+
+target_compile_options(wfb_listener PUBLIC
+	${wfb_listener_cflags}
+)
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_custom_target(set_cap
 		sudo setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' wfb_listener
 	)
 endif ()
 
-set_target_properties(wfb_listener PROPERTIES C_STANDARD 99)
-
-target_include_directories(wfb_listener PUBLIC
-	${ZFEC_INCLUDE_DIRS}
-	${RADIOTAP_INCLUDE_DIRS}
-	${LIBEVENT_INCLUDE_DIRS}
-	${LIBPCAP_INCLUDE_DIRS}
-	${LIBSODIUM_INCLUDE_DIRS}
-	${GSTREAMER_INCLUDE_DIRS}
-)
-
-target_link_directories(wfb_listener PUBLIC
-	${LIBEVENT_LIBRARY_DIRS}
-	${LIBPCAP_LIBRARY_DIRS}
-	${LIBSODIUM_LIBRARY_DIRS}
-	${GSTREAMER_LIBRARY_DIRS}
-)
-
-target_link_libraries(wfb_listener
-	${LIBEVENT_LIBRARIES}
-	${LIBPCAP_LIBRARIES}
-	${LIBSODIUM_LIBRARIES}
-	${GSTREAMER_LIBRARIES}
-)
-
-target_compile_options(wfb_listener PUBLIC
-	${LIBEVENT_CFLAGS_OTHER}
-	${LIBPCAP_CFLAGS_OTHER}
-	${LIBSODIUM_CFLAGS_OTHER}
-	${GSTREAMER_CFLAGS_OTHER}
-	${WFB_CFLAGS_OTHER}
-	${CMAKE_THREAD_LIBS_INIT}
-)
