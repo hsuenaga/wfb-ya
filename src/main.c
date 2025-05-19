@@ -170,7 +170,7 @@ _main(int argc, char *argv[])
 	}
 
 	p_debug("Initalizing crypto.\n");
-	if (crypto_wfb_init("./gs.key") < 0) {
+	if (crypto_wfb_init(options.key_file) < 0) {
 		p_err("Cannot Initialize crypto\n");
 		exit(0);
 	}
