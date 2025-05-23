@@ -2,9 +2,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "wfb_params.h"
 #include "util_log.h"
-
-int debug = 0;
 
 __attribute__((format(printf, 1, 2)))
 void
@@ -38,7 +37,7 @@ __p_debug(const char *fmt, ...)
 {
 	va_list ap;
 
-	if (!debug)
+	if (!options.debug)
 		return;
 
 	assert(fmt);
