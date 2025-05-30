@@ -32,7 +32,8 @@
 
 struct wfb_opt options = {
 	.rx_wireless = DEF_WRX,
-	.txrx_wired = DEF_ERX,
+	.tx_wired = DEF_ERX,
+	.rx_wired = DEF_ERX,
 	.key_file = DEF_KEY,
 	.mc_addr = WFB_ADDR6,
 	.mc_port = WFB_PORT,
@@ -93,7 +94,8 @@ parse_options(int *argc0, char **argv0[])
 				options.rx_wireless = optarg;
 				break;
 			case 'e':
-				options.txrx_wired = optarg;
+				options.tx_wired = optarg;
+				options.rx_wired = optarg;
 				break;
 			case 'a':
 				options.mc_addr = optarg;
@@ -139,7 +141,7 @@ parse_options(int *argc0, char **argv0[])
 	*argc0 = argc;
 	*argv0 = argv;
 
-	if (!options.rx_wireless && !options.txrx_wired) {
+	if (!options.rx_wireless && !options.rx_wired) {
 		fprintf(stderr, "Please specify at least one Rx device.\n");
 		exit(0);
 	}
@@ -187,6 +189,14 @@ _main(int argc, char *argv[])
 		exit(0);
 	}
 
+	p_debug("Initializing tx components\n");
+	if (options.tx_wired) {
+		if (rx_context_set_mirror(&rx_ctx, netinet6_tx, &in6_ctx) < 0) {
+			p_err("Cannot Attach NetRx\n");
+			exit(0);
+		}
+	}
+
 #ifdef ENABLE_GSTREAMER
 	if (options.local_play) {
 		// Create new thread and waiting for data.
@@ -206,13 +216,7 @@ _main(int argc, char *argv[])
 	}
 #endif
 
-	if (options.txrx_wired) {
-		if (rx_context_set_mirror(&rx_ctx, netinet6_tx, &in6_ctx) < 0) {
-			p_err("Cannot Attach NetRx\n");
-			exit(0);
-		}
-	}
-
+	p_debug("Initializing rx components\n");
 	if (options.rx_wireless) {
 		p_debug("Initalizing pcap rx.\n");
 		fd = netpcap_initialize(&pcap_ctx, &net_ctx, &rx_ctx,
@@ -223,10 +227,10 @@ _main(int argc, char *argv[])
 		}
 	}
 
-	if (options.txrx_wired) {
+	if (options.rx_wired) {
 		p_debug("Initalizing inet6 rx.\n");
 		fd = netinet6_initialize(&in6_ctx, &net_ctx, &rx_ctx,
-		    options.txrx_wired);
+		    options.rx_wired);
 		if (fd < 0) {
 			p_err("Cannot Initialize Inet6 Rx\n");
 			exit(0);

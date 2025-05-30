@@ -22,7 +22,8 @@
 
 struct wfb_opt {
 	const char *rx_wireless;
-	const char *txrx_wired;
+	const char *rx_wired;
+	const char *tx_wired;
 	const char *key_file;
 	const char *mc_addr;
 	uint16_t mc_port;
