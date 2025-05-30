@@ -181,29 +181,31 @@ _main(int argc, char *argv[])
 		exit(0);
 	}
 
+	p_debug("Initalizing rx parser.\n");
+	if (rx_context_init(&rx_ctx, wfb_ch) < 0) {
+		p_err("Cannot Initialize Rx.\n");
+		exit(0);
+	}
+
 #ifdef ENABLE_GSTREAMER
 	if (options.local_play) {
+		// Create new thread and waiting for data.
 		p_debug("Initalizing decoder.\n");
 		if (decode_h265_context_init(&d_ctx) < 0) {
 			p_err("Cannot Initialize Decoder\n");
 			exit(0);
 		}
-	}
-#endif
-
-	p_debug("Initalizing rx.\n");
-	if (rx_context_init(&rx_ctx, wfb_ch) < 0) {
-		p_err("Cannot Initialize Rx.\n");
-		exit(0);
-	}
-#ifdef ENABLE_GSTREAMER
-	if (options.local_play) {
+		if (decode_h265_thread_start(&d_ctx) < 0) {
+			p_err("Cannot Start Decoder thread\n");
+			exit(0);
+		}
 		if (rx_context_set_decode(&rx_ctx, decode_h265, &d_ctx) < 0) {
 			p_err("Cannot Attach Decoder\n");
 			exit(0);
 		}
 	}
 #endif
+
 	if (options.txrx_wired) {
 		if (rx_context_set_mirror(&rx_ctx, netinet6_tx, &in6_ctx) < 0) {
 			p_err("Cannot Attach NetRx\n");

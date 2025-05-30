@@ -85,6 +85,8 @@ decode_h265_context_init(struct decode_h265_context *ctx)
 	assert(ctx);
 	memset(ctx, 0, sizeof(*ctx));
 
+	pthread_mutex_init(&ctx->lock, NULL);
+
 	p_debug("Initializing gst\n");
 	gst_init(NULL, NULL);
 
@@ -151,7 +153,7 @@ decode_h265_context_init(struct decode_h265_context *ctx)
 	ctx->bus_watch_id = gst_bus_add_watch(bus, bus_call, ctx);
 	gst_object_unref(bus);
 
-	pthread_create(&ctx->tid_loop, NULL, loop, ctx);
+	ctx->initialized = 1;
 
 	return 0;
 }
@@ -161,13 +163,40 @@ decode_h265_context_deinit(struct decode_h265_context *ctx)
 {
 	void *ret;
 
+	pthread_mutex_lock(&ctx->lock);
+	if (ctx->closing) {
+		pthread_mutex_unlock(&ctx->lock);
+		return;
+	}
+	pthread_mutex_unlock(&ctx->lock);
+
 	ctx->closing = 1;
 	gst_element_set_state(ctx->pipeline, GST_STATE_NULL);
 	g_main_loop_quit(ctx->loop);
 	gst_object_unref(ctx->pipeline);
 	pthread_join(ctx->tid_loop, &ret);
 
-	memset(ctx, 0, sizeof(*ctx));
+	ctx->initialized = 0;
+}
+
+int
+decode_h265_thread_start(struct decode_h265_context *ctx)
+{
+	if (!ctx->initialized) {
+		p_debug("Decoder context is not initialized.\n");
+		return -1;
+	}
+	pthread_create(&ctx->tid_loop, NULL, loop, ctx);
+
+	return 0;
+}
+
+int
+decode_h265_thread_join(struct decode_h265_context *ctx)
+{
+	decode_h265_context_deinit(ctx);
+
+	return 0;
 }
 
 void
@@ -181,6 +210,9 @@ decode_h265(uint8_t *data, size_t size, void *arg)
 	assert(data);
 	assert(size);
 
+	if (!ctx->initialized)
+		return;
+
 	buf = gst_buffer_new_memdup(data, size);
 	assert(buf);
 
@@ -189,4 +221,3 @@ decode_h265(uint8_t *data, size_t size, void *arg)
 
 	return;
 }
-

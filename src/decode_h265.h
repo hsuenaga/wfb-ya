@@ -16,12 +16,16 @@ struct decode_h265_context {
 	GstElement *sink;
 	GMainLoop *loop;
 
+	pthread_mutex_t lock;
 	pthread_t tid_loop;
 	int bus_watch_id;
+	int initialized;
 	int closing;
 };
 
 extern int decode_h265_context_init(struct decode_h265_context *ctx);
 extern void decode_h265_context_deinit(struct decode_h265_context *ctx);
+extern int decode_h265_thread_start(struct decode_h265_context *ctx);
+extern int decode_h265_thread_join(struct decode_h265_context *ctx);
 extern void decode_h265(uint8_t *data, size_t size, void *arg);
 #endif /* __DECODE_H265_H__ */
