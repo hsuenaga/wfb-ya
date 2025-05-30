@@ -11,18 +11,36 @@
 #include "util_log.h"
 
 int
-rx_context_init(struct rx_context *ctx, uint32_t channel_id,
-    void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg,
-    void (*mirror)(uint8_t *data, size_t size, void *arg), void *mirror_arg)
+rx_context_init(struct rx_context *ctx, uint32_t channel_id)
 {
 	assert(ctx);
 
 	memset(ctx, 0, sizeof(*ctx));
+	ctx->channel_id = channel_id;
+
+	return 0;
+}
+
+int
+rx_context_set_decode(struct rx_context *ctx,
+    void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg)
+{
+	assert(ctx);
+
 	ctx->decode = decode;
 	ctx->decode_arg = decode_arg;
+
+	return 0;
+}
+
+int
+rx_context_set_mirror(struct rx_context *ctx,
+    void (*mirror)(uint8_t *data, size_t size, void *arg), void *mirror_arg)
+{
+	assert(ctx);
+
 	ctx->mirror = mirror;
 	ctx->mirror_arg = mirror_arg;
-	ctx->channel_id = channel_id;
 
 	return 0;
 }

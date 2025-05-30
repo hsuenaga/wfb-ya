@@ -36,9 +36,11 @@ struct rx_context {
 	void *mirror_arg;
 };
 
-extern int rx_context_init(struct rx_context *ctx, uint32_t channel_id,
-    void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg,
-    void (*mirror)(uint8_t *data, size_t size, void *arg), void *mirror_arg);
+extern int rx_context_init(struct rx_context *ctx, uint32_t channel_id);
+extern int rx_context_set_decode(struct rx_context *ctx,
+    void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg);
+extern int rx_context_set_mirror(struct rx_context *ctx,
+    void (*mirror)(uint8_t *data, size_t size, void *arg), void *decode_arg);
 extern void rx_context_dump(struct rx_context *ctx);
 extern int rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen);
 extern int rx_frame_udp(struct rx_context *ctx, void *rxbuf, size_t rxlen);
