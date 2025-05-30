@@ -25,7 +25,7 @@ struct netinet6_context {
 extern int netinet6_initialize(struct netinet6_context *ctx,
     struct netcore_context *core_ctx,
     struct rx_context *rx_ctx,
-    const char *dev, uint32_t channel_id);
+    const char *dev);
 extern void netinet6_deinitialize(struct netinet6_context *ctx);
 
 extern void netinet6_tx(uint8_t *data, size_t size, void *arg);

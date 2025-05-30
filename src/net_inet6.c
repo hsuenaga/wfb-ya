@@ -46,7 +46,7 @@ int
 netinet6_initialize(struct netinet6_context *ctx,
     struct netcore_context *net_ctx,
     struct rx_context *rx_ctx,
-    const char *dev, uint32_t channel_id)
+    const char *dev)
 {
 	struct sockaddr_in6 sin6;
 	struct ipv6_mreq mreq;

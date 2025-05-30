@@ -212,21 +212,21 @@ _main(int argc, char *argv[])
 	}
 
 	if (options.rx_wireless) {
-		p_debug("Initalizing pcap.\n");
+		p_debug("Initalizing pcap rx.\n");
 		fd = netpcap_initialize(&pcap_ctx, &net_ctx, &rx_ctx,
 		    options.rx_wireless, wfb_ch, options.use_monitor);
 		if (fd < 0) {
-			p_err("Cannot Initialize pcap\n");
+			p_err("Cannot Initialize PCAP Rx\n");
 			exit(0);
 		}
 	}
 
 	if (options.txrx_wired) {
-		p_debug("Initalizing inet6.\n");
+		p_debug("Initalizing inet6 rx.\n");
 		fd = netinet6_initialize(&in6_ctx, &net_ctx, &rx_ctx,
-		    options.txrx_wired, wfb_ch);
+		    options.txrx_wired);
 		if (fd < 0) {
-			p_err("Cannot Initialize inet6\n");
+			p_err("Cannot Initialize Inet6 Rx\n");
 			exit(0);
 		}
 	}
