@@ -253,7 +253,8 @@ _main(int argc, char *argv[])
 int
 main(int argc, char *argv[])
 {
-#if defined(__APPLE__) && TARGET_OS_MAC && !TARGET_OS_IPHONE
+#if defined(__APPLE__) && TARGET_OS_MAC && !TARGET_OS_IPHONE \
+    && defined(ENABLE_GSTREAMER)
 	return gst_macos_main((GstMainFunc) _main, argc, argv, NULL);
 #else
 	return _main(argc, argv);
