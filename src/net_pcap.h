@@ -21,7 +21,7 @@ struct netpcap_context {
 extern int netpcap_initialize(struct netpcap_context *ctx,
     struct netcore_context *net_ctx,
     struct rx_context *rx_ctx,
-    const char *dev, uint32_t channel_id, bool use_monitor);
+    const char *dev, bool use_monitor);
 extern void netpcap_deinitialize(struct netpcap_context *ctx);
 
 #endif /* __NET_PCAP_H__ */

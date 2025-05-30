@@ -85,7 +85,7 @@ int
 netpcap_initialize(struct netpcap_context *ctx,
     struct netcore_context *net_ctx,
     struct rx_context *rx_ctx,
-    const char *dev, uint32_t channel_id, bool use_monitor)
+    const char *dev, bool use_monitor)
 {
 	pcap_t *pcap = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE] = {'\0'};
@@ -154,7 +154,7 @@ netpcap_initialize(struct netpcap_context *ctx,
 		goto err;
 	}
 
-	if (netpcap_filter_initialize(pcap, channel_id) < 0) {
+	if (netpcap_filter_initialize(pcap, rx_ctx->channel_id) < 0) {
 		p_err("Cannot initialize filter.\n");
 		goto err;
 	}

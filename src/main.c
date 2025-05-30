@@ -214,7 +214,7 @@ _main(int argc, char *argv[])
 	if (options.rx_wireless) {
 		p_debug("Initalizing pcap rx.\n");
 		fd = netpcap_initialize(&pcap_ctx, &net_ctx, &rx_ctx,
-		    options.rx_wireless, wfb_ch, options.use_monitor);
+		    options.rx_wireless, options.use_monitor);
 		if (fd < 0) {
 			p_err("Cannot Initialize PCAP Rx\n");
 			exit(0);
