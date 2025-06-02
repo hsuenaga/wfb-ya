@@ -32,7 +32,7 @@
 
 struct wfb_opt options = {
 	.rx_wireless = DEF_WRX,
-	.tx_wired = DEF_ERX,
+	.tx_wired = DEF_ETX,
 	.rx_wired = DEF_ERX,
 	.key_file = DEF_KEY,
 	.mc_addr = WFB_ADDR6,
@@ -54,13 +54,15 @@ print_help(const char *path)
 	printf("%s -- WFB-NG based Rx and Multicast Tx\n", name);
 	printf("\n");
 	printf("Synopsis:\n");
-	printf("\t%s [-w <dev>] [-e <dev>] [-a <addr>] [-p <port>] [-k <file>]\n",
-	    name);
-	printf("\t    [-l] [-m] [-n] [-d] [-h]\n");
+	printf("\t%s [-w <dev>] [-e <dev>] [-E <dev>]\n", name);
+        printf("\t[-a <addr>] [-p <port>] [-k <file>]\n");
+	printf("\t[-l] [-m] [-n] [-d] [-h]\n");
 	printf("Options:\n");
 	printf("\t-w <dev> ... specify Wireless Rx device. default: %s\n",
 	    DEF_WRX ? DEF_WRX : "none");
-	printf("\t-e <dev> ... specify Ethernet Tx/Rx device. default: %s\n",
+	printf("\t-e <dev> ... specify Ethernet Rx device. default: %s\n",
+	    DEF_ERX ? DEF_ERX : "none");
+	printf("\t-E <dev> ... specify Ethernet Tx device. default: %s\n",
 	    DEF_ERX ? DEF_ERX : "none");
 	printf("\t-a <addr> ... specify Multicast address . default: %s\n",
 	    WFB_ADDR6);
@@ -86,7 +88,7 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "w:e:a:p:k:lmndh")) != -1) {
+	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:lmndh")) != -1) {
 		long val;
 
 		switch (ch) {
@@ -94,8 +96,10 @@ parse_options(int *argc0, char **argv0[])
 				options.rx_wireless = optarg;
 				break;
 			case 'e':
-				options.tx_wired = optarg;
 				options.rx_wired = optarg;
+				break;
+			case 'E':
+				options.tx_wired = optarg;
 				break;
 			case 'a':
 				options.mc_addr = optarg;

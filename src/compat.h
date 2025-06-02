@@ -20,12 +20,14 @@
 #define le64toh(x) OSSwapLittleToHostInt64(x)
 #define DEF_WRX NULL
 #define DEF_ERX NULL
+#define DEF_ETX NULL
 #define DEF_KEY "./gs.key"
 #else
 /* Linux */
 #include <endian.h>
 #define DEF_WRX "wlan1"
 #define DEF_ERX NULL
+#define DEF_ETX NULL
 #define DEF_KEY "./gs.key"
 extern char *basename_r(const char *path, char *bname);
 #endif
