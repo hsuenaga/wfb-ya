@@ -6,6 +6,10 @@
 // Ring buffer
 #define RX_RING_SIZE	40
 
+// Handlers
+#define RX_MAX_MIRROR	3
+#define RX_MAX_DECODE	3
+
 // Radiotap
 #define RTAP_SIZ	256 // RTL8812AU/EU
 

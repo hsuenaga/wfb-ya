@@ -10,6 +10,23 @@
 #include "rx_data.h"
 #include "util_log.h"
 
+static void
+rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size)
+{
+	int i;
+
+	if (ctx->n_mirror_handler <= 0)
+		return;
+
+	for (i = 0; i < ctx->n_mirror_handler; i++) {
+		if (ctx->mirror_handler[i].func == NULL)
+			continue;
+
+		ctx->mirror_handler[i].func(data, size,
+		    ctx->mirror_handler[i].arg);
+	}
+}
+
 int
 rx_context_init(struct rx_context *ctx, uint32_t channel_id)
 {
@@ -37,12 +54,20 @@ int
 rx_context_set_mirror(struct rx_context *ctx,
     void (*mirror)(uint8_t *data, size_t size, void *arg), void *mirror_arg)
 {
+	int i;
+
 	assert(ctx);
 
-	ctx->mirror = mirror;
-	ctx->mirror_arg = mirror_arg;
+	for (i = 0; i < RX_MAX_MIRROR; i++) {
+		if (ctx->mirror_handler[i].func != NULL)
+			continue;
+		ctx->mirror_handler[i].func = mirror;
+		ctx->mirror_handler[i].arg = mirror_arg;
+		ctx->n_mirror_handler++;
+		return 0;
+	}
 
-	return 0;
+	return -1;
 }
 
 void
@@ -122,11 +147,7 @@ rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen)
 	if (ctx->channel_id && ctx->channel_id != ctx->ieee80211.channel_id)
 		return -1;
 
-	if (ctx->mirror) {
-		ctx->mirror(rxbuf, rxlen, ctx->mirror_arg);
-		if (!options.local_play)
-			return 0; // no more process.
-	}
+	rx_mirror_frame(ctx, rxbuf, rxlen);
 
 	parsed = wfb_frame_parse(rxbuf, rxlen, &ctx->wfb);
 	if (parsed < 0)

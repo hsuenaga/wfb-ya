@@ -8,6 +8,11 @@
 #include "frame_wfb.h"
 #include "fec_wfb.h"
 
+struct rx_mirror_handler {
+	void (*func)(uint8_t *data, size_t size, void *arg);
+	void *arg;
+};
+
 struct rx_context {
 	struct pcap_context pcap;
 	struct radiotap_context radiotap;
@@ -30,10 +35,11 @@ struct rx_context {
 	struct rbuf *rx_ring;
 
 	/* callback */
+	struct rx_mirror_handler mirror_handler[RX_MAX_MIRROR];
+	int n_mirror_handler;
+
 	void (*decode)(uint8_t *data, size_t size, void *arg);
 	void *decode_arg;
-	void (*mirror)(uint8_t *data, size_t size, void *arg);
-	void *mirror_arg;
 };
 
 extern int rx_context_init(struct rx_context *ctx, uint32_t channel_id);
