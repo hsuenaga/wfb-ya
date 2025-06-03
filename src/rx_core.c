@@ -10,23 +10,6 @@
 #include "rx_data.h"
 #include "util_log.h"
 
-static void
-rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size)
-{
-	int i;
-
-	if (ctx->n_mirror_handler <= 0)
-		return;
-
-	for (i = 0; i < ctx->n_mirror_handler; i++) {
-		if (ctx->mirror_handler[i].func == NULL)
-			continue;
-
-		ctx->mirror_handler[i].func(data, size,
-		    ctx->mirror_handler[i].arg);
-	}
-}
-
 int
 rx_context_init(struct rx_context *ctx, uint32_t channel_id)
 {
@@ -42,12 +25,37 @@ int
 rx_context_set_decode(struct rx_context *ctx,
     void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg)
 {
+	int i;
+
 	assert(ctx);
 
-	ctx->decode = decode;
-	ctx->decode_arg = decode_arg;
+	for (i = 0; i < RX_MAX_DECODE; i++) {
+		if (ctx->decode_handler[i].func != NULL)
+			continue;
+		ctx->decode_handler[i].func = decode;
+		ctx->decode_handler[i].arg = decode_arg;
+		ctx->n_decode_handler++;
+		return 0;
+	}
 
-	return 0;
+	return -1;
+}
+
+void
+rx_decode_frame(struct rx_context *ctx, uint8_t *data, size_t size)
+{
+	int i;
+
+	if (ctx->n_decode_handler <= 0)
+		return;
+
+	for (i = 0; i < ctx->n_decode_handler; i++) {
+		if (ctx->decode_handler[i].func == NULL)
+			continue;
+
+		ctx->decode_handler[i].func(data, size,
+		    ctx->decode_handler[i].arg);
+	}
 }
 
 int
@@ -68,6 +76,23 @@ rx_context_set_mirror(struct rx_context *ctx,
 	}
 
 	return -1;
+}
+
+void
+rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size)
+{
+	int i;
+
+	if (ctx->n_mirror_handler <= 0)
+		return;
+
+	for (i = 0; i < ctx->n_mirror_handler; i++) {
+		if (ctx->mirror_handler[i].func == NULL)
+			continue;
+
+		ctx->mirror_handler[i].func(data, size,
+		    ctx->mirror_handler[i].arg);
+	}
 }
 
 void

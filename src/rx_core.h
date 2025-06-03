@@ -8,7 +8,7 @@
 #include "frame_wfb.h"
 #include "fec_wfb.h"
 
-struct rx_mirror_handler {
+struct rx_handler {
 	void (*func)(uint8_t *data, size_t size, void *arg);
 	void *arg;
 };
@@ -35,18 +35,20 @@ struct rx_context {
 	struct rbuf *rx_ring;
 
 	/* callback */
-	struct rx_mirror_handler mirror_handler[RX_MAX_MIRROR];
+	struct rx_handler mirror_handler[RX_MAX_MIRROR];
 	int n_mirror_handler;
 
-	void (*decode)(uint8_t *data, size_t size, void *arg);
-	void *decode_arg;
+	struct rx_handler decode_handler[RX_MAX_DECODE];
+	int n_decode_handler;
 };
 
 extern int rx_context_init(struct rx_context *ctx, uint32_t channel_id);
 extern int rx_context_set_decode(struct rx_context *ctx,
     void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg);
+extern void rx_decode_frame(struct rx_context *ctx, uint8_t *data, size_t size);
 extern int rx_context_set_mirror(struct rx_context *ctx,
     void (*mirror)(uint8_t *data, size_t size, void *arg), void *decode_arg);
+extern void rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size);
 extern void rx_context_dump(struct rx_context *ctx);
 extern int rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen);
 extern int rx_frame_udp(struct rx_context *ctx, void *rxbuf, size_t rxlen);

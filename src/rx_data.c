@@ -46,8 +46,8 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 	}
 
 
-	if (ctx->decode)
-		ctx->decode((uint8_t *)(hdr + 1), pktlen, ctx->decode_arg);
+	if (ctx->n_decode_handler > 0)
+		rx_decode_frame(ctx, (uint8_t *)(hdr + 1), pktlen);
 	else
 		p_debug("Received %lu: %d bytes, BLK %" PRIu64
 		    ", FRAG %02x, FEC: %s\n",
