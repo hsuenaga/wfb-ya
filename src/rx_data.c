@@ -24,20 +24,19 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 	uint16_t pktlen;
 	bool is_fec;
 	uint32_t seq;
-	static uint32_t last_seq = 0;
 
 	hdr = (struct wfb_data_hdr *)blk->fragment[blk->fragment_to_send];
 	pktlen = be16toh(hdr->packet_size);
 	is_fec = (blk->fragment_len[blk->fragment_to_send] == 0);
 	seq = blk->index * ctx->fec_k + blk->fragment_to_send;
 
-	if (last_seq > 0) {
-		if (seq > last_seq + 1) {
+	if (ctx->rx_ring->last_seq > 0) {
+		if (seq > ctx->rx_ring->last_seq + 1) {
 			p_debug("Missing Frame: %d\n",
-			   seq - last_seq - 1);
+			   seq - ctx->rx_ring->last_seq - 1);
 		}
 	}
-	last_seq = seq;
+	ctx->rx_ring->last_seq = seq;
 
 	if (hdr->flags & WFB_PACKET_F_FEC_ONLY)
 		return; // Null frame to complete FEC

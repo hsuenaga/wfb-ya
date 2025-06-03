@@ -97,7 +97,6 @@ rx_session(struct rx_context *ctx)
 	ctx->fec_type = hdr->fec_type;
 	ctx->fec_k = hdr->fec_k;
 	ctx->fec_n = hdr->fec_n;
-	// XXX: ctx->session_key is not reuiqred in the fact.
 	memcpy(ctx->session_key, hdr->session_key, sizeof(ctx->session_key));
 	crypto_wfb_session_key_set(hdr->session_key, sizeof(hdr->session_key));
 	ctx->has_session_key = true;
