@@ -103,5 +103,7 @@ rx_session(struct rx_context *ctx)
 
 	rx_session_dump(ctx);
 
+	rx_log_create(ctx);
+
 	return 0;
 }

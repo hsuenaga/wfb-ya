@@ -23,7 +23,7 @@ struct rbuf {
 	size_t fragment_size;
 
 	uint64_t last_block; // last allocated block
-	uint32_t last_seq; // last received seq.#
+	uint64_t last_seq; // last received seq.#
 
 	struct rbuf_block *blocks;
 };

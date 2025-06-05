@@ -4,6 +4,9 @@
 #include <inttypes.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
+
+#include "compat.h"
 
 #include "rx_core.h"
 #include "rx_session.h"
@@ -92,6 +95,56 @@ rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size)
 
 		ctx->mirror_handler[i].func(data, size,
 		    ctx->mirror_handler[i].arg);
+	}
+}
+
+void
+rx_log_frame(struct rx_context *ctx,
+    uint64_t block_idx, uint8_t fragment_idx, uint8_t *data, size_t size)
+{
+	struct rx_log_header hd;
+	struct rx_logger *log = &ctx->log_handler;
+	struct timespec ts;
+
+	hd.seq = block_idx * ctx->fec_n + fragment_idx;
+
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+		hd.ts = ts;
+	}
+	else {
+		hd.ts.tv_sec = 0;
+		hd.ts.tv_nsec = 0;
+	}
+	hd.size = data ? size : 0;
+	hd.block_idx = block_idx;
+	hd.fragment_idx = fragment_idx;;
+	hd.fec_k = ctx->fec_k;
+	hd.fec_n = ctx->fec_n;
+
+	p_debug("Packet Log: SEQ %lu, BLK %lu, FRAG %u, SIZE %lu\n",
+	    hd.seq, hd.block_idx, hd.fragment_idx, size);
+
+	if (log->fp == NULL)
+		return;
+
+	fwrite(&hd, sizeof(hd), 1, log->fp);
+	if (data && size > 0) {
+		fwrite(data, size, 1, log->fp);
+	}
+	fflush(log->fp);
+}
+
+void
+rx_log_create(struct rx_context *ctx)
+{
+	struct rx_logger *log = &ctx->log_handler;
+
+	if (log->fp)
+		fclose(log->fp);
+
+	log->fp = fopen(options.log_file, "w");
+	if (log->fp) {
+		p_debug("New LOG File: %s\n", options.log_file);
 	}
 }
 

@@ -17,18 +17,28 @@
 #include "util_rbuf.h"
 #include "util_log.h"
 
+static inline uint64_t
+blk_get_seq(struct rx_context *ctx, struct rbuf_block *blk)
+{
+	uint64_t seq;
+
+	seq = blk->index * ctx->fec_k + blk->fragment_to_send;
+
+	return seq;
+}
+
 static void
 send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 {
 	struct wfb_data_hdr *hdr;
 	uint16_t pktlen;
 	bool is_fec;
-	uint32_t seq;
+	uint64_t seq;
 
 	hdr = (struct wfb_data_hdr *)blk->fragment[blk->fragment_to_send];
 	pktlen = be16toh(hdr->packet_size);
 	is_fec = (blk->fragment_len[blk->fragment_to_send] == 0);
-	seq = blk->index * ctx->fec_k + blk->fragment_to_send;
+	seq = blk_get_seq(ctx, blk);
 
 	if (ctx->rx_ring->last_seq > 0) {
 		if (seq > ctx->rx_ring->last_seq + 1) {
@@ -53,7 +63,10 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 		    ", FRAG %02x, FEC: %s\n",
 		    seq, pktlen, blk->index, blk->fragment_to_send,
 		    is_fec ? "YES" : "NO");
-	
+
+	rx_log_frame(ctx, blk->index, blk->fragment_to_send,
+	    (uint8_t *)(hdr + 1), pktlen);
+
 	return;
 }
 
@@ -222,6 +235,7 @@ rx_data(struct rx_context *ctx)
 		p_err("Fragment index out of range.\n");
 		return -1;
 	}
+	rx_log_frame(ctx, ctx->wfb.block_idx, ctx->wfb.fragment_idx, NULL, 0);
 
 	fragment_idx = ctx->wfb.fragment_idx;
 
@@ -242,6 +256,7 @@ rx_data(struct rx_context *ctx)
 		ctx->has_session_key = false;
 		return -1;
 	}
+
 	// need to clear rest of buffer to perform FEC.
 	memset(fragment_data + plain_len, 0,
 	    ctx->rx_ring->fragment_size - plain_len);

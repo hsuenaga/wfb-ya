@@ -30,6 +30,7 @@ struct wfb_opt {
 	const char *tx_wired;
 	const char *key_file;
 	const char *mc_addr;
+	const char *log_file;
 	uint16_t mc_port;
 	bool local_play;
 	bool use_monitor;

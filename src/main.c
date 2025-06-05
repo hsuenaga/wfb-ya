@@ -73,6 +73,7 @@ print_help(const char *path)
 #ifdef ENABLE_GSTREAMER
 	printf("\t-l ... enable local play. default: disable\n");
 #endif
+	printf("\t-L ... log file name. default: (none)\n");
 	printf("\t-m ... use RFMonitor mode instead of Promiscous mode.\n");
 	printf("\t-n ... don't apply FEC decode.\n");
 	printf("\t-d ... enable debug output.\n");
@@ -88,7 +89,7 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:lmndh")) != -1) {
+	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:L:lmndh")) != -1) {
 		long val;
 
 		switch (ch) {
@@ -123,6 +124,9 @@ parse_options(int *argc0, char **argv0[])
 				fprintf(stderr, "gstreamer is disabled by compile option.\n");
 				exit(0);
 #endif
+				break;
+			case 'L':
+				options.log_file = optarg;
 				break;
 			case 'm':
 				options.use_monitor = true;
