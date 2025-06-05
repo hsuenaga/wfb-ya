@@ -14,6 +14,7 @@ struct netinet6_context {
 	int sock;
 	struct event *ev;
 	struct sockaddr_in6 mc_group;
+	struct sockaddr_storage ss_src;
 	int mc_if;
 
 	uint8_t rxbuf[INET6_MTU];

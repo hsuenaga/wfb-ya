@@ -2,6 +2,7 @@
 #define __RX_CORE_H__
 #include <stdbool.h>
 #include <time.h>
+#include <netinet/in.h>
 
 #include "frame_pcap.h"
 #include "frame_radiotap.h"
@@ -27,6 +28,9 @@ struct rx_log_header {
 	uint8_t fragment_idx;
 	uint8_t fec_k;
 	uint8_t fec_n;
+
+	// Network Byte order
+	struct sockaddr_in6 rx_src;
 };
 
 struct rx_context {
@@ -48,6 +52,7 @@ struct rx_context {
 	bool has_session_key;
 
 	/* data */
+	struct sockaddr_in6 rx_src;
 	struct rbuf *rx_ring;
 
 	/* callback */

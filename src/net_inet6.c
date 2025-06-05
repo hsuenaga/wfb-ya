@@ -22,21 +22,27 @@ static void
 netinet6_rx(evutil_socket_t fd, short event, void *arg)
 {
 	struct netinet6_context *ctx = (struct netinet6_context *)arg;
-	struct sockaddr_storage ss;
 	socklen_t sslen;
 	ssize_t rxlen;
 
 	assert(ctx);
 
+	sslen = sizeof(ctx->ss_src);
+	ctx->ss_src.ss_len = sslen;
+	ctx->rx_ctx->rx_src.sin6_family = AF_UNSPEC;
 retry:
 	rxlen = recvfrom(fd, ctx->rxbuf, sizeof(ctx->rxbuf), 0,
-	    (struct sockaddr *)&ss, &sslen);
+	    (struct sockaddr *)&ctx->ss_src, &sslen);
 	if (rxlen < 0) {
 		if (errno == EINTR) {
 			goto retry;
 		}
 		p_debug("recvfrom() failed: %s.\n", strerror(errno));
 		return;
+	}
+
+	if (ctx->ss_src.ss_family == AF_INET6) {
+		memcpy(&ctx->rx_ctx->rx_src, &ctx->ss_src, sslen);
 	}
 
 	rx_frame_udp(ctx->rx_ctx, ctx->rxbuf, rxlen);

@@ -1,5 +1,6 @@
 #ifndef __LOG_ANALYSIS_H__
 #define __LOG_ANALYSIS_H__
+#include <netinet/in.h>
 #include <sys/time.h>
 #include <sys/queue.h>
 
@@ -15,6 +16,7 @@ struct log_data {
 	uint32_t size;
 	uint64_t block_idx;
 	uint64_t fragment_idx;
+	struct sockaddr_in6 rx_src;
 	void *buf;
 
 	STAILQ_ENTRY(log_data) next;

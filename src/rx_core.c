@@ -106,6 +106,11 @@ rx_log_frame(struct rx_context *ctx,
 	struct rx_logger *log = &ctx->log_handler;
 	struct timespec ts;
 
+	if (data == NULL)
+		size = 0;
+	if (size == 0)
+		data = NULL;
+
 	hd.seq = block_idx * ctx->fec_n + fragment_idx;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
@@ -115,11 +120,18 @@ rx_log_frame(struct rx_context *ctx,
 		hd.ts.tv_sec = 0;
 		hd.ts.tv_nsec = 0;
 	}
-	hd.size = data ? size : 0;
 	hd.block_idx = block_idx;
 	hd.fragment_idx = fragment_idx;;
 	hd.fec_k = ctx->fec_k;
 	hd.fec_n = ctx->fec_n;
+	hd.size = size;
+	if (size == 0) {
+		if (ctx->rx_src.sin6_family == AF_INET6)
+			hd.rx_src = ctx->rx_src;
+	}
+	else {
+		hd.rx_src.sin6_family = AF_UNSPEC;
+	}
 
 	p_debug("Packet Log: SEQ %lu, BLK %lu, FRAG %u, SIZE %lu\n",
 	    hd.seq, hd.block_idx, hd.fragment_idx, size);

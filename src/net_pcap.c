@@ -37,6 +37,8 @@ netpcap_rx(evutil_socket_t fd, short event, void *arg)
 	void *rxbuf;
 	ssize_t rxlen;
 
+	ctx->rx_ctx->rx_src.sin6_family = AF_UNSPEC;
+
 	rxlen = netpcap_recv(ctx->pcap, &hdr, &rxbuf);
 	if (rxlen < 0) {
 		p_err("recv_pcap() failed.\n");

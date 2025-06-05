@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <sys/time.h>
 #include <sys/param.h>
+#include <arpa/inet.h>
 
 #include "log_analysis.h"
 
@@ -185,6 +186,10 @@ parse_header(FILE *fp, struct log_store *ds)
 	d->block_idx = hd.block_idx;
 	d->fragment_idx = hd.fragment_idx;
 
+	if (hd.rx_src.sin6_family == AF_INET6) {
+		d->rx_src = hd.rx_src;
+	}
+
 	if (parse_payload(fp, d, hd.size) < 0)
 		return -1;
 
@@ -195,12 +200,20 @@ int
 serialize_log(struct log_store *ds)
 {
 	struct log_data *d;
+	char s_addr[INET6_ADDRSTRLEN];
 
-	p_info("\"Sequence\", \"TimeStamp\", \"Block Index\", \"Fragment Index\", \"Data Size\"\n");
+	p_info("\"Sequence\", \"TimeStamp\", \"Block Index\", \"Fragment Index\", \"Src Node\", \"Data Size\"\n");
 	STAILQ_FOREACH(d, &ds->dh, next) {
-		p_info("%u, %llu.%09llu, %llu, %llu, %u\n",
+		if (d->rx_src.sin6_family == AF_INET6) {
+			inet_ntop(AF_INET6, &d->rx_src.sin6_addr, s_addr, sizeof(s_addr));
+		}
+		else {
+			snprintf(s_addr, sizeof(s_addr), "");
+		}
+		p_info("%u, %llu.%09llu, %llu, %llu, %s, %u\n",
 		    d->key, d->ts.tv_sec, d->ts.tv_nsec,
-		    d->block_idx, d->fragment_idx, d->size);
+		    d->block_idx, d->fragment_idx,
+		    s_addr, d->size);
 	}
 
 	return 0;
