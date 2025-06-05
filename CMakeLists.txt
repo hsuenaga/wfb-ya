@@ -137,6 +137,19 @@ target_compile_options(wfb_listener PUBLIC
 	${wfb_listener_cflags}
 )
 
+set(log_analysis_srcs
+	src/log_analysis.c
+	src/util_log.c
+)
+
+add_executable(log_analysis
+	${log_analysis_srcs}
+)
+
+target_include_directories(log_analysis PUBLIC
+	${wfb_listener_incs}
+)
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_custom_target(set_cap
 		sudo setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' wfb_listener
