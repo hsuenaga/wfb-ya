@@ -182,7 +182,7 @@ data_add(struct rx_context *ctx, struct rbuf_block *blk)
 
 	if (blk->fragment_to_send < ctx->fec_k &&
 	    blk->fragment_used == ctx->fec_k &&
-	    !options.no_fec) {
+	    !wfb_options.no_fec) {
 		// some frames are lost, but we can recover those using FEC.
 		int fec_count = 0;
 		int i;

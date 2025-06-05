@@ -22,6 +22,15 @@
 #define DEF_ERX NULL
 #define DEF_ETX NULL
 #define DEF_KEY "./gs.key"
+#define	timespecsub(tsp, usp, vsp)				\
+do {								\
+	(vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;		\
+	(vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec;	\
+	if ((vsp)->tv_nsec < 0) {				\
+		(vsp)->tv_sec--;				\
+		(vsp)->tv_nsec += 1000000000L;			\
+	}							\
+} while (/* CONSTCOND */ 0)
 #else
 /* Linux */
 #include <endian.h>

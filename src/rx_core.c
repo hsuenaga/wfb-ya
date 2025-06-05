@@ -142,9 +142,9 @@ rx_log_create(struct rx_context *ctx)
 	if (log->fp)
 		fclose(log->fp);
 
-	log->fp = fopen(options.log_file, "w");
+	log->fp = fopen(wfb_options.log_file, "w");
 	if (log->fp) {
-		p_debug("New LOG File: %s\n", options.log_file);
+		p_debug("New LOG File: %s\n", wfb_options.log_file);
 	}
 }
 

@@ -1,8 +1,5 @@
 #ifndef __FRAME_PCAP_H__
 #define __FRAME_PCAP_H__
-#include <sys/time.h>
-#include <event2/event.h>
-
 struct pcap_context {
 	void *data;
 	uint32_t caplen;

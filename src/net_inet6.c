@@ -77,7 +77,7 @@ netinet6_initialize(struct netinet6_context *ctx,
 	memset(&sin6, 0, sizeof(sin6));
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_addr = in6addr_any;
-	sin6.sin6_port = htobe16(options.mc_port);
+	sin6.sin6_port = htobe16(wfb_options.mc_port);
 	if (bind(s, (struct sockaddr *)&sin6, sizeof(sin6)) < 0) {
 		p_err("bind() failed: %s.\n", strerror(errno));
 		goto err;
@@ -91,11 +91,11 @@ netinet6_initialize(struct netinet6_context *ctx,
 	}
 
 	ctx->mc_group.sin6_family = AF_INET6;
-	ctx->mc_group.sin6_port = htobe16(options.mc_port);
+	ctx->mc_group.sin6_port = htobe16(wfb_options.mc_port);
 	ctx->mc_group.sin6_flowinfo = 0;
-	r = inet_pton(AF_INET6, options.mc_addr, &ctx->mc_group.sin6_addr);
+	r = inet_pton(AF_INET6, wfb_options.mc_addr, &ctx->mc_group.sin6_addr);
 	if (r == 0) {
-		p_err("invalid address %s\n", options.mc_addr);
+		p_err("invalid address %s\n", wfb_options.mc_addr);
 		goto err;
 	}
 	else if (r < 0) {

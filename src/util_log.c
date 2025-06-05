@@ -37,7 +37,7 @@ __p_debug(const char *fmt, ...)
 {
 	va_list ap;
 
-	if (!options.debug)
+	if (!wfb_options.debug)
 		return;
 
 	assert(fmt);

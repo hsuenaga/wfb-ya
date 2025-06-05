@@ -30,7 +30,7 @@
 
 #include "util_log.h"
 
-struct wfb_opt options = {
+struct wfb_opt wfb_options = {
 	.rx_wireless = DEF_WRX,
 	.tx_wired = DEF_ETX,
 	.rx_wired = DEF_ERX,
@@ -94,16 +94,16 @@ parse_options(int *argc0, char **argv0[])
 
 		switch (ch) {
 			case 'w':
-				options.rx_wireless = optarg;
+				wfb_options.rx_wireless = optarg;
 				break;
 			case 'e':
-				options.rx_wired = optarg;
+				wfb_options.rx_wired = optarg;
 				break;
 			case 'E':
-				options.tx_wired = optarg;
+				wfb_options.tx_wired = optarg;
 				break;
 			case 'a':
-				options.mc_addr = optarg;
+				wfb_options.mc_addr = optarg;
 				break;
 			case 'p':
 				val = strtol(optarg, NULL, 10);
@@ -112,30 +112,30 @@ parse_options(int *argc0, char **argv0[])
 					    "Invalid port %s\n", optarg);
 					exit(0);
 				}
-				options.mc_port = (uint16_t)val;
+				wfb_options.mc_port = (uint16_t)val;
 				break;
 			case 'k':
-				options.key_file = optarg;
+				wfb_options.key_file = optarg;
 				break;
 			case 'l':
 #ifdef ENABLE_GSTREAMER
-				options.local_play = true;
+				wfb_options.local_play = true;
 #else
 				fprintf(stderr, "gstreamer is disabled by compile option.\n");
 				exit(0);
 #endif
 				break;
 			case 'L':
-				options.log_file = optarg;
+				wfb_options.log_file = optarg;
 				break;
 			case 'm':
-				options.use_monitor = true;
+				wfb_options.use_monitor = true;
 				break;
 			case 'n':
-				options.no_fec = true;
+				wfb_options.no_fec = true;
 				break;
 			case 'd':
-				options.debug = true;
+				wfb_options.debug = true;
 				break;
 			case 'h':
 			case '?':
@@ -149,7 +149,7 @@ parse_options(int *argc0, char **argv0[])
 	*argc0 = argc;
 	*argv0 = argv;
 
-	if (!options.rx_wireless && !options.rx_wired) {
+	if (!wfb_options.rx_wireless && !wfb_options.rx_wired) {
 		fprintf(stderr, "Please specify at least one Rx device.\n");
 		exit(0);
 	}
@@ -180,7 +180,7 @@ _main(int argc, char *argv[])
 	}
 
 	p_debug("Initalizing crypto.\n");
-	if (crypto_wfb_init(options.key_file) < 0) {
+	if (crypto_wfb_init(wfb_options.key_file) < 0) {
 		p_err("Cannot Initialize crypto\n");
 		exit(0);
 	}
@@ -198,7 +198,7 @@ _main(int argc, char *argv[])
 	}
 
 	p_debug("Initializing tx components\n");
-	if (options.tx_wired) {
+	if (wfb_options.tx_wired) {
 		if (rx_context_set_mirror(&rx_ctx, netinet6_tx, &in6_ctx) < 0) {
 			p_err("Cannot Attach NetRx\n");
 			exit(0);
@@ -206,7 +206,7 @@ _main(int argc, char *argv[])
 	}
 
 #ifdef ENABLE_GSTREAMER
-	if (options.local_play) {
+	if (wfb_options.local_play) {
 		// Create new thread and waiting for data.
 		p_debug("Initalizing decoder.\n");
 		if (decode_h265_context_init(&d_ctx) < 0) {
@@ -225,20 +225,20 @@ _main(int argc, char *argv[])
 #endif
 
 	p_debug("Initializing rx components\n");
-	if (options.rx_wireless) {
+	if (wfb_options.rx_wireless) {
 		p_debug("Initalizing pcap rx.\n");
 		fd = netpcap_initialize(&pcap_ctx, &net_ctx, &rx_ctx,
-		    options.rx_wireless, options.use_monitor);
+		    wfb_options.rx_wireless, wfb_options.use_monitor);
 		if (fd < 0) {
 			p_err("Cannot Initialize PCAP Rx\n");
 			exit(0);
 		}
 	}
 
-	if (options.rx_wired) {
+	if (wfb_options.rx_wired) {
 		p_debug("Initalizing inet6 rx.\n");
 		fd = netinet6_initialize(&in6_ctx, &net_ctx, &rx_ctx,
-		    options.rx_wired);
+		    wfb_options.rx_wired);
 		if (fd < 0) {
 			p_err("Cannot Initialize Inet6 Rx\n");
 			exit(0);

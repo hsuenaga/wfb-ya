@@ -38,6 +38,6 @@ struct wfb_opt {
 	bool debug;
 };
 
-extern struct wfb_opt options;
+extern struct wfb_opt wfb_options;
 
 #endif /* __WFB_PARAMS_H__ */
