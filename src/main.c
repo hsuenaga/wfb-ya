@@ -39,7 +39,8 @@ struct wfb_opt wfb_options = {
 	.mc_port = WFB_PORT,
 	.local_play = false,
 	.use_monitor = false,
-	.no_fec =false,
+	.no_fec = false,
+	.log_file = NULL,
 	.debug = false
 };
 

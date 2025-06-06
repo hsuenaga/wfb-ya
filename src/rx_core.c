@@ -168,6 +168,10 @@ rx_log_create(struct rx_context *ctx)
 
 	if (log->fp)
 		fclose(log->fp);
+	if (wfb_options.log_file == NULL) {
+		log->fp = NULL;
+		return;
+	}
 
 	log->fp = fopen(wfb_options.log_file, "w");
 	if (log->fp) {
