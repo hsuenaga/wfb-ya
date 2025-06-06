@@ -29,7 +29,9 @@ netinet6_rx(evutil_socket_t fd, short event, void *arg)
 	assert(ctx);
 
 	sslen = sizeof(ctx->ss_src);
+#ifndef __linux__
 	ctx->ss_src.ss_len = sslen;
+#endif
 	ctx->rx_ctx->rx_src.sin6_family = AF_UNSPEC;
 retry:
 	rxlen = recvfrom(fd, ctx->rxbuf, sizeof(ctx->rxbuf), 0,

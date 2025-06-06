@@ -208,7 +208,7 @@ serialize_log(struct log_store *ds)
 			inet_ntop(AF_INET6, &d->rx_src.sin6_addr, s_addr, sizeof(s_addr));
 		}
 		else {
-			snprintf(s_addr, sizeof(s_addr), "");
+			s_addr[0] = '\0';
 		}
 		p_info("%u, %llu.%09llu, %llu, %llu, %s, %u\n",
 		    d->key, d->ts.tv_sec, d->ts.tv_nsec,
