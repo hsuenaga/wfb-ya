@@ -5,6 +5,8 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/uio.h>
 
 #include "compat.h"
 
@@ -63,7 +65,7 @@ rx_decode_frame(struct rx_context *ctx, uint8_t *data, size_t size)
 
 int
 rx_context_set_mirror(struct rx_context *ctx,
-    void (*mirror)(uint8_t *data, size_t size, void *arg), void *mirror_arg)
+    void (*mirror)(struct iovec *iov, int iovcnt, void *arg), void *mirror_arg)
 {
 	int i;
 
@@ -84,17 +86,27 @@ rx_context_set_mirror(struct rx_context *ctx,
 void
 rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size)
 {
+	struct iovec iov[2];
 	int i;
 
 	if (ctx->n_mirror_handler <= 0)
 		return;
 
+	ctx->udp.freq = ctx->freq;
+	ctx->udp.dbm = ctx->dbm;
+	udp_frame_build(&ctx->udp);
+
+	iov[0].iov_base = ctx->udp.hdr;
+	iov[0].iov_len = ctx->udp.hdrlen;
+	iov[1].iov_base = data;
+	iov[1].iov_len = size;
+
+
 	for (i = 0; i < ctx->n_mirror_handler; i++) {
 		if (ctx->mirror_handler[i].func == NULL)
 			continue;
 
-		ctx->mirror_handler[i].func(data, size,
-		    ctx->mirror_handler[i].arg);
+		ctx->mirror_handler[i].func(iov, 2, ctx->mirror_handler[i].arg);
 	}
 }
 
@@ -106,6 +118,8 @@ rx_log_frame(struct rx_context *ctx,
 	struct rx_logger *log = &ctx->log_handler;
 	struct timespec ts;
 
+	if (log->fp == NULL)
+		return;
 	if (data == NULL)
 		size = 0;
 	if (size == 0)
@@ -128,16 +142,17 @@ rx_log_frame(struct rx_context *ctx,
 	if (size == 0) {
 		if (ctx->rx_src.sin6_family == AF_INET6)
 			hd.rx_src = ctx->rx_src;
+		hd.freq = ctx->freq;
+		hd.dbm = ctx->dbm;
 	}
 	else {
 		hd.rx_src.sin6_family = AF_UNSPEC;
+		hd.freq = 0;
+		hd.dbm = INT16_MIN;
 	}
 
 	p_debug("Packet Log: SEQ %lu, BLK %lu, FRAG %u, SIZE %lu\n",
 	    hd.seq, hd.block_idx, hd.fragment_idx, size);
-
-	if (log->fp == NULL)
-		return;
 
 	fwrite(&hd, sizeof(hd), 1, log->fp);
 	if (data && size > 0) {
@@ -215,6 +230,8 @@ rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen)
 	assert(rxbuf);
 	assert(ctx);
 
+	ctx->rx_src.sin6_family = AF_UNSPEC;
+
 	parsed = pcap_frame_parse(rxbuf, rxlen, &ctx->pcap);
 	if (parsed < 0)
 		return -1;
@@ -226,6 +243,8 @@ rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen)
 		return -1;
 	rxbuf += parsed;
 	rxlen -= parsed;
+	ctx->freq = ctx->radiotap.freq;
+	ctx->dbm = ctx->radiotap.dbm;
 	if (ctx->radiotap.has_fcs)
 		rxlen -= 4; // Strip FCS from tail.
 	
@@ -255,6 +274,16 @@ rx_frame_udp(struct rx_context *ctx, void *rxbuf, size_t rxlen)
 
 	assert(rxbuf);
 	assert(ctx);
+
+	// NOTE: ctx->rx_src is set by net_inet6.c
+
+	parsed = udp_frame_parse(rxbuf, rxlen, &ctx->udp);
+	if (parsed < 0)
+		return -1;
+	rxbuf += parsed;
+	rxlen -= parsed;
+	ctx->freq = ctx->udp.freq;
+	ctx->dbm = ctx->udp.dbm;
 
 	parsed = wfb_frame_parse(rxbuf, rxlen, &ctx->wfb);
 	if (parsed < 0)

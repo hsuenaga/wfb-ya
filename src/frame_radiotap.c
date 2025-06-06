@@ -208,6 +208,16 @@ radiotap_frame_parse(void *data, size_t size, struct radiotap_context *ctx)
 	    (*ctx->raw.flags & IEEE80211_RADIOTAP_F_FCS) ? true : false;
 	ctx->bad_fcs =
 	    (*ctx->raw.flags & IEEE80211_RADIOTAP_F_BADFCS) ? true : false;
+	if (ctx->raw.channel) {
+		ctx->freq = le16toh(ctx->raw.channel->freq);
+		ctx->flags = le16toh(ctx->raw.channel->flags);
+	}
+	if (ctx->raw.dbm_antenna_signal) {
+		ctx->dbm = *ctx->raw.dbm_antenna_signal;
+	}
+	else {
+		ctx->dbm = INT16_MIN;
+	}
 
 	return iter._max_length;
 }

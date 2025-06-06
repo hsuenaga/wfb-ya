@@ -2,15 +2,23 @@
 #define __RX_CORE_H__
 #include <stdbool.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/uio.h>
 #include <netinet/in.h>
 
 #include "frame_pcap.h"
 #include "frame_radiotap.h"
 #include "frame_ieee80211.h"
 #include "frame_wfb.h"
+#include "frame_udp.h"
 #include "fec_wfb.h"
 
-struct rx_handler {
+struct rx_mirror_handler {
+	void (*func)(struct iovec *iov, int iovcnt, void *arg);
+	void *arg;
+};
+
+struct rx_decode_handler {
 	void (*func)(uint8_t *data, size_t size, void *arg);
 	void *arg;
 };
@@ -31,6 +39,10 @@ struct rx_log_header {
 
 	// Network Byte order
 	struct sockaddr_in6 rx_src;
+
+	// Host Byte order
+	uint16_t freq;
+	int16_t dbm;
 };
 
 struct rx_context {
@@ -38,6 +50,7 @@ struct rx_context {
 	struct radiotap_context radiotap;
 	struct ieee80211_context ieee80211;
 	struct wfb_context wfb;
+	struct udp_context udp;
 	struct fec_context fec;
 
 	/* common */
@@ -51,15 +64,19 @@ struct rx_context {
 	uint8_t session_key[crypto_aead_chacha20poly1305_KEYBYTES];
 	bool has_session_key;
 
-	/* data */
+	/* meta data */
 	struct sockaddr_in6 rx_src;
+	uint16_t freq;
+	int16_t dbm;
+
+	/* data */
 	struct rbuf *rx_ring;
 
 	/* callback */
-	struct rx_handler mirror_handler[RX_MAX_MIRROR];
+	struct rx_mirror_handler mirror_handler[RX_MAX_MIRROR];
 	int n_mirror_handler;
 
-	struct rx_handler decode_handler[RX_MAX_DECODE];
+	struct rx_decode_handler decode_handler[RX_MAX_DECODE];
 	int n_decode_handler;
 
 	struct rx_logger log_handler;
@@ -83,7 +100,7 @@ extern int rx_context_set_decode(struct rx_context *ctx,
     void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg);
 extern void rx_decode_frame(struct rx_context *ctx, uint8_t *data, size_t size);
 extern int rx_context_set_mirror(struct rx_context *ctx,
-    void (*mirror)(uint8_t *data, size_t size, void *arg), void *decode_arg);
+    void (*mirror)(struct iovec *iov, int iovcnt, void *arg), void *decode_arg);
 extern void rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size);
 extern void rx_log_frame(struct rx_context *ctx,
     uint64_t block_idx, uint8_t fragment_idx, uint8_t *data, size_t size);

@@ -48,6 +48,7 @@ set(wfb_listener_srcs
 	src/rx_core.c
 	src/rx_session.c
 	src/rx_data.c
+	src/frame_udp.c
 	src/frame_pcap.c
 	src/frame_radiotap.c
 	src/frame_ieee80211.c

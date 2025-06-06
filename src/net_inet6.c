@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <assert.h>
 
+#include <sys/uio.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -164,25 +165,26 @@ netinet6_deinitialize(struct netinet6_context *ctx)
 }
 
 void
-netinet6_tx(uint8_t *data, size_t size, void *arg)
+netinet6_tx(struct iovec *iov, int iovcnt, void *arg)
 {
 	struct netinet6_context *ctx = (struct netinet6_context *)arg;
 	ssize_t n;
 
 	assert(ctx);
-	assert(data);
+	assert(iov);
+	assert(iovcnt > 0);
 	assert(ctx->sock >= 0);
 
-	if (size == 0)
-		return;
-
 retry:
+	/*
 	n = sendto(ctx->sock, data, size, MSG_DONTWAIT,
 	    (struct sockaddr *)&ctx->mc_group, sizeof(ctx->mc_group));
+        */
+	n = writev(ctx->sock, iov, iovcnt);
 	if (n < 0) {
 		if (errno == EINTR) {
 			goto retry;
 		}
-		p_debug("sendto() failed: %s\n", strerror(errno));
+		p_debug("writev() failed: %s\n", strerror(errno));
 	}
 }

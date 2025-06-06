@@ -110,6 +110,9 @@ struct radiotap_eht {
 struct radiotap_context {
 	bool has_fcs;
 	bool bad_fcs;
+	uint16_t freq;
+	uint16_t flags;
+	int16_t dbm;
 
 	struct radiotap_params {
 		// Little endian.

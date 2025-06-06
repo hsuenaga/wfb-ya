@@ -1,6 +1,8 @@
 #ifndef __NET_INET6_H__
 #define __NET_INET6_H__
 #include <stdint.h>
+#include <unistd.h>
+#include <sys/uio.h>
 #include <netinet/in.h>
 #include <event2/event.h>
 
@@ -29,5 +31,5 @@ extern int netinet6_initialize(struct netinet6_context *ctx,
     const char *dev);
 extern void netinet6_deinitialize(struct netinet6_context *ctx);
 
-extern void netinet6_tx(uint8_t *data, size_t size, void *arg);
+extern void netinet6_tx(struct iovec *iov, int iovcnt, void *arg);
 #endif /* __NET_INET6_H__ */
