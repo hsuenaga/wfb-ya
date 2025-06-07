@@ -95,9 +95,11 @@ parse_options(int *argc0, char **argv0[])
 
 		switch (ch) {
 			case 'w':
+				wfb_options.rx_wired = NULL;
 				wfb_options.rx_wireless = optarg;
 				break;
 			case 'e':
+				wfb_options.rx_wireless = NULL;
 				wfb_options.rx_wired = optarg;
 				break;
 			case 'E':
@@ -164,7 +166,8 @@ _main(int argc, char *argv[])
 {
 	struct netcore_context net_ctx;
 	struct netpcap_context pcap_ctx;
-	struct netinet6_context in6_ctx;
+	struct netinet6_rx_context in6r_ctx;
+	struct netinet6_tx_context in6t_ctx;
 	struct rx_context rx_ctx;
 #ifdef ENABLE_GSTREAMER
 	struct decode_h265_context d_ctx;
@@ -200,7 +203,8 @@ _main(int argc, char *argv[])
 
 	p_debug("Initializing tx components\n");
 	if (wfb_options.tx_wired) {
-		if (rx_context_set_mirror(&rx_ctx, netinet6_tx, &in6_ctx) < 0) {
+		netinet6_tx_initialize(&in6t_ctx, wfb_options.tx_wired);
+		if (rx_context_set_mirror(&rx_ctx, netinet6_tx, &in6t_ctx) < 0) {
 			p_err("Cannot Attach NetRx\n");
 			exit(0);
 		}
@@ -238,7 +242,7 @@ _main(int argc, char *argv[])
 
 	if (wfb_options.rx_wired) {
 		p_debug("Initalizing inet6 rx.\n");
-		fd = netinet6_initialize(&in6_ctx, &net_ctx, &rx_ctx,
+		fd = netinet6_rx_initialize(&in6r_ctx, &net_ctx, &rx_ctx,
 		    wfb_options.rx_wired);
 		if (fd < 0) {
 			p_err("Cannot Initialize Inet6 Rx\n");
@@ -253,7 +257,9 @@ _main(int argc, char *argv[])
 
 	netcore_deinitialize(&net_ctx);
 	netpcap_deinitialize(&pcap_ctx);
-	netinet6_deinitialize(&in6_ctx);
+	if (wfb_options.rx_wired) {
+		netinet6_rx_deinitialize(&in6r_ctx);
+	}
 
 	// XXX: more cleanup
 	exit(1);
