@@ -222,6 +222,12 @@ netinet6_tx_initialize(struct netinet6_tx_context *ctx, const char *dev)
 		goto err;
 	}
 
+	/* remote address and port */
+	if (connect(s, (struct sockaddr *)&ctx->mc_group, sizeof(ctx->mc_group)) < 0) {
+		p_err("connect() failed: %s.\n", strerror(errno));
+		goto err;
+	}
+
 	/* configure multicast tx */
 	if (setsockopt(s, IPPROTO_IPV6,
 	    IPV6_MULTICAST_IF, &ctx->mc_if, sizeof(ctx->mc_if)) < 0) {
@@ -282,6 +288,6 @@ retry:
 		if (errno == EINTR) {
 			goto retry;
 		}
-		p_debug("writev() failed: %s\n", strerror(errno));
+		p_err("writev() failed: %s\n", strerror(errno));
 	}
 }
