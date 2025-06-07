@@ -185,6 +185,10 @@ parse_header(FILE *fp, struct log_store *ds)
 		d->ts = hd.ts;
 	d->block_idx = hd.block_idx;
 	d->fragment_idx = hd.fragment_idx;
+	if (hd.freq != 0)
+		d->freq = hd.freq;
+	if (hd.dbm != INT16_MIN)
+		d->dbm = hd.dbm;
 
 	if (hd.rx_src.sin6_family == AF_INET6) {
 		d->rx_src = hd.rx_src;
@@ -202,7 +206,7 @@ serialize_log(struct log_store *ds)
 	struct log_data *d;
 	char s_addr[INET6_ADDRSTRLEN];
 
-	p_info("\"Sequence\", \"TimeStamp\", \"Block Index\", \"Fragment Index\", \"Src Node\", \"Data Size\"\n");
+	p_info("\"Sequence\", \"TimeStamp\", \"Block Index\", \"Fragment Index\", \"Src Node\", \"Frequency\", \"dBm\", \"Data Size\"\n");
 	STAILQ_FOREACH(d, &ds->dh, next) {
 		if (d->rx_src.sin6_family == AF_INET6) {
 			inet_ntop(AF_INET6, &d->rx_src.sin6_addr, s_addr, sizeof(s_addr));
@@ -210,10 +214,10 @@ serialize_log(struct log_store *ds)
 		else {
 			s_addr[0] = '\0';
 		}
-		p_info("%u, %llu.%09llu, %llu, %llu, %s, %u\n",
+		p_info("%u, %llu.%09llu, %llu, %llu, %s, %u, %d, %u\n",
 		    d->key, d->ts.tv_sec, d->ts.tv_nsec,
 		    d->block_idx, d->fragment_idx,
-		    s_addr, d->size);
+		    s_addr, d->freq, d->dbm, d->size);
 	}
 
 	return 0;

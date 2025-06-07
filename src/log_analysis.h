@@ -17,6 +17,8 @@ struct log_data {
 	uint64_t block_idx;
 	uint64_t fragment_idx;
 	struct sockaddr_in6 rx_src;
+	uint16_t freq;
+	int16_t dbm;
 	void *buf;
 
 	STAILQ_ENTRY(log_data) next;
