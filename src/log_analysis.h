@@ -1,30 +1,16 @@
 #ifndef __LOG_ANALYSIS_H__
 #define __LOG_ANALYSIS_H__
-#include <netinet/in.h>
-#include <sys/time.h>
-#include <sys/queue.h>
+enum output_types {
+	OUTPUT_NONE,
+	OUTPUT_CSV,
+	OUTPUT_JSON,
+	OUTPUT_MAX
+};
 
 struct log_analysis_opt {
-	char *file_name;
+	char *file_name_in;
+	char *file_name_out;
+	enum output_types out_type;
 };
 
-
-struct log_data {
-	uint64_t key;
-
-	struct timespec ts;
-	uint32_t size;
-	uint64_t block_idx;
-	uint64_t fragment_idx;
-	struct sockaddr_in6 rx_src;
-	uint16_t freq;
-	int16_t dbm;
-	void *buf;
-
-	STAILQ_ENTRY(log_data) next;
-};
-
-struct log_store {
-	STAILQ_HEAD(log_data_hd, log_data) dh;
-};
 #endif /* __LOG_ANALYSIS_H__ */

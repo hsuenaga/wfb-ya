@@ -42,7 +42,7 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 
 	if (ctx->rx_ring->last_seq > 0) {
 		if (seq > ctx->rx_ring->last_seq + 1) {
-			p_debug("Missing Frame: %d\n",
+			p_debug("Missing Frame: %llu\n",
 			   seq - ctx->rx_ring->last_seq - 1);
 		}
 	}
@@ -59,8 +59,8 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 	if (ctx->n_decode_handler > 0)
 		rx_decode_frame(ctx, (uint8_t *)(hdr + 1), pktlen);
 	else
-		p_debug("Received %lu: %d bytes, BLK %" PRIu64
-		    ", FRAG %02x, FEC: %s\n",
+		p_debug("Received %llu: %d bytes, BLK %" PRIu64
+		    ", FRAG %02zx, FEC: %s\n",
 		    seq, pktlen, blk->index, blk->fragment_to_send,
 		    is_fec ? "YES" : "NO");
 

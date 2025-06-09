@@ -50,4 +50,8 @@ do {								\
 } while (/* CONSTCOND */ 0)
 #endif
 
+#ifndef NELEMS
+#define NELEMS(x) (sizeof((x))/sizeof((x)[0]))
+#endif
+
 #endif /* __COMPAT_H__ */

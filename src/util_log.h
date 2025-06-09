@@ -2,10 +2,11 @@
 #define __UTIL_LOG_H__
 #include <stdint.h>
 #include <stdarg.h>
+#include "util_attribute.h"
 
-extern void __p_info(const char *fmt, ...);
-extern void __p_err(const char *fmt, ...);
-extern void __p_debug(const char *fmt, ...);
+extern void __p_info(const char *fmt, ...) __printf;
+extern void __p_err(const char *fmt, ...) __printf;
+extern void __p_debug(const char *fmt, ...) __printf;
 extern int debug;
 
 #define p_info(fmt, ...) do { \

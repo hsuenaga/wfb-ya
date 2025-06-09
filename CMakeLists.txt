@@ -140,6 +140,8 @@ target_compile_options(wfb_listener PUBLIC
 
 set(log_analysis_srcs
 	src/log_analysis.c
+	src/log_raw.c
+	src/log_csv.c
 	src/util_log.c
 	src/compat.c
 )
