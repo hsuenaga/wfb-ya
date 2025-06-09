@@ -4,6 +4,7 @@ enum output_types {
 	OUTPUT_NONE,
 	OUTPUT_CSV,
 	OUTPUT_JSON,
+	OUTPUT_SUMMARY,
 	OUTPUT_MAX
 };
 

@@ -142,6 +142,8 @@ set(log_analysis_srcs
 	src/log_analysis.c
 	src/log_raw.c
 	src/log_csv.c
+	src/log_json.c
+	src/log_summary.c
 	src/util_log.c
 	src/compat.c
 )

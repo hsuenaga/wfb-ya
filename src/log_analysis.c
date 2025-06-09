@@ -12,6 +12,8 @@
 #include "log_analysis.h"
 #include "log_raw.h"
 #include "log_csv.h"
+#include "log_json.h"
+#include "log_summary.h"
 
 #include "wfb_params.h"
 #include "util_log.h"
@@ -46,6 +48,7 @@ print_help(const char *path)
 	printf("Output Foramt <type>:\n");
 	printf("\tcsv .. comma separated values(default).\n");
 	printf("\tjson .. javascript object.\n");
+	printf("\tsummary .. summary values.\n");
 	printf("\tnone .. no output. error check only.\n");
 }
 
@@ -73,6 +76,9 @@ parse_options(int *argc0, char **argv0[])
 				}
 				else if (strcasecmp(optarg, "json") == 0) {
 					options.out_type = OUTPUT_JSON;
+				}
+				else if (strcasecmp(optarg, "summary") == 0) {
+					options.out_type = OUTPUT_SUMMARY;
 				}
 				else if (strcasecmp(optarg, "none") == 0) {
 					options.out_type = OUTPUT_NONE;
@@ -135,7 +141,10 @@ main(int argc, char *argv[])
 			csv_serialize(fp_out, ls);
 			break;
 		case OUTPUT_JSON:
-			printf("JSON is not supported yet.\n");
+			json_serialize(fp_out, ls);
+			break;
+		case OUTPUT_SUMMARY:
+			summary_output(fp_out, ls);
 			break;
 		case OUTPUT_NONE:
 		default:

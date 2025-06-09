@@ -4,5 +4,8 @@
 #define __packed __attribute__((packed))
 #define __printf __attribute__((format(printf, 1, 2)))
 #define __fprintf __attribute__((format(printf, 2, 3)))
+#ifndef __printflike
+#define __printflike(x, y) __attribute__((format(printf, (x), (y))))
+#endif
 
 #endif /* __UTIL_ATTRIBUTE_H__ */

@@ -57,6 +57,7 @@ log_v_alloc(struct log_store *ds, uint64_t key)
 			return NULL;
 		memset(kv, 0, sizeof(*kv));
 		kv->key = key;
+		kv->has_ethernet_frame = false;
 		TAILQ_INIT(&kv->vh);
 
 		if (kvp) {
@@ -71,6 +72,7 @@ log_v_alloc(struct log_store *ds, uint64_t key)
 	if (v == NULL)
 		return NULL;
 	memset(v, 0, sizeof(*v));
+	v->kv = kv;
 	TAILQ_INSERT_TAIL(&kv->vh, v, chain);
 	return v;
 }
@@ -112,7 +114,7 @@ process_payload(FILE *fp, struct log_data_v *v, ssize_t size)
 }
 
 static ssize_t
-process_header(FILE *fp, struct log_store *ds)
+process_header(FILE *fp, struct log_store *ls)
 {
 	struct rx_log_header hd;
 	struct log_data_v *v;
@@ -141,9 +143,18 @@ process_header(FILE *fp, struct log_store *ds)
 	timespecsub(&hd.ts, &epoch, &hd.ts);
 	dump_header(&hd);
 
-	v = log_v_alloc(ds, hd.seq);
-	if (hd.size > 0)
+	v = log_v_alloc(ls, hd.seq);
+	if (v == NULL)
+		return -1;
+
+	assert(v->kv);
+
+	if (hd.size > 0) {
 		v->size = hd.size;
+	}
+	else {
+		v->kv->has_ethernet_frame = true;
+	}
 	if (v->ts.tv_sec == 0 && v->ts.tv_nsec == 0)
 		v->ts = hd.ts;
 	v->block_idx = hd.block_idx;
@@ -162,6 +173,28 @@ process_header(FILE *fp, struct log_store *ds)
 	if (process_payload(fp, v, hd.size) < 0)
 		return -1;
 
+	// update counters
+	if (hd.size > 0) {
+		/* H.265 frames */
+		ls->n_frames++;
+		if (ls->max_frame_size < hd.size)
+			ls->max_frame_size = hd.size;
+		if (ls->min_frame_size > hd.size)
+			ls->min_frame_size = hd.size;
+		ls->total_bytes += hd.size;
+	}
+	else {
+		/* Raw ethernet frames */
+		ls->n_pkts++;
+		if (hd.dbm != INT16_MIN) {
+			ls->n_pkts_with_dbm++;
+			if (ls->max_dbm < hd.dbm)
+				ls->max_dbm = hd.dbm;
+			if (ls->min_dbm > hd.dbm)
+				ls->min_dbm = hd.dbm;
+		}
+	}
+
 	return hd.size;
 }
 
@@ -179,6 +212,10 @@ load_log(FILE *fp)
 		return NULL;
 
 	memset(ls, 0, sizeof(*ls));
+	ls->max_dbm = INT16_MIN;
+	ls->min_dbm = INT16_MAX;
+	ls->max_frame_size = 0;
+	ls->min_frame_size = UINT32_MAX;
 	TAILQ_INIT(&ls->kvh);
 
 	for (;;) {
