@@ -86,6 +86,8 @@ dump_header(struct rx_log_header *hd)
 	p_debug("Fragemnt: %u\n", hd->fragment_idx);
 	p_debug("FEC_K: %u\n", hd->fec_k);
 	p_debug("FEC_N: %u\n", hd->fec_n);
+	p_debug("FREQ: %u\n", hd->freq);
+	p_debug("dbm: %d\n", hd->dbm);
 }
 
 struct log_data *
