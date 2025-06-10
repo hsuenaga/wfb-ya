@@ -9,7 +9,7 @@
 #include "net_core.h"
 #include "rx_core.h"
 #include "net_pcap.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 static ssize_t
 netpcap_recv(pcap_t *pcap, struct pcap_pkthdr **hdr, void **rxbuf)

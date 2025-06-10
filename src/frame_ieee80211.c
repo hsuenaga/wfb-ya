@@ -9,7 +9,7 @@
 #include "wfb_params.h"
 
 #include "frame_ieee80211.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 static inline int
 get_version(uint16_t frame_control)

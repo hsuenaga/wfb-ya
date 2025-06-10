@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "util_log.h"
+#include "util_msg.h"
 
-#include "log_raw.h"
+#include "log_summary.h"
 
 int
 summary_output(FILE *fp, struct log_store *ls)

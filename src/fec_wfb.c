@@ -5,7 +5,7 @@
 #include "frame_wfb.h"
 #include "fec_wfb.h"
 #include "util_rbuf.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 static int
 fec_zfec_new(struct fec_context *ctx, int k, int n)

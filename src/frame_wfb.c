@@ -9,7 +9,7 @@
 
 #include "frame_wfb.h"
 #include "crypto_wfb.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 static const char *
 s_packet_type(uint8_t type)

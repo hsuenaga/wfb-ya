@@ -12,7 +12,7 @@
 #include "frame_radiotap.h"
 #include "frame_ieee80211.h"
 #include "frame_wfb.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 void
 pcap_context_dump(struct pcap_context *ctx)

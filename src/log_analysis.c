@@ -17,7 +17,7 @@
 #include "log_h265.h"
 
 #include "wfb_params.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 struct wfb_opt wfb_options = {
 	.debug = false

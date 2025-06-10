@@ -9,7 +9,7 @@
 #include <gst/app/gstappsrc.h>
 
 #include "wfb_gst.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 static void
 set_timestamp(GstBuffer *buf, struct timespec *ts)
@@ -41,6 +41,7 @@ static gboolean
 bus_call(GstBus *bus, GstMessage *msg, gpointer arg)
 {
 	struct wfb_gst_context *ctx = arg;
+	GstClock *clock = NULL; 
 	GError *err;
 	gchar *debug_info;
 
@@ -72,10 +73,18 @@ bus_call(GstBus *bus, GstMessage *msg, gpointer arg)
 			p_info("End-Of-Stream reached.\n");
 			pthread_cond_signal(&ctx->eos);
 			break;
+		case GST_MESSAGE_NEW_CLOCK:
+			gst_message_parse_new_clock(msg, &clock);
+			if (clock) {
+				p_info("ClockName: %s\n", GST_OBJECT_NAME(clock));
+			}
+			else {
+				p_info("ClockName: NULL\n");
+			}
+			break;
 		case GST_MESSAGE_STATE_CHANGED:
 		case GST_MESSAGE_STREAM_STATUS:
 		case GST_MESSAGE_STREAM_START:
-		case GST_MESSAGE_NEW_CLOCK:
 		case GST_MESSAGE_ELEMENT:
 		case GST_MESSAGE_TAG:
 		case GST_MESSAGE_QOS:
@@ -127,8 +136,7 @@ wfb_gst_init_source(struct wfb_gst_context *ctx)
 			"media", G_TYPE_STRING, "video",
 			"clock-rate", G_TYPE_INT, 90000,
 			"encoding-name", G_TYPE_STRING, "H265",
-//			"framerate", G_TYPE_INT, 120,
-//			"payload", G_TYPE_INT, 96,
+			"framerate", GST_TYPE_FRACTION, 120, 1,
 			NULL);
 	if (caps == NULL)
 		return -1;
@@ -154,6 +162,7 @@ wfb_gst_init_codec(struct wfb_gst_context *ctx, const char *file)
 			p_err("Cannot find H.265 parser.\n");
 			return -1;
 		}
+		g_object_set(ctx->h265, "config-interval", 1, NULL);
 		p_info("Using h265parse\n");
 		return 0;
 	}

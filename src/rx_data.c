@@ -15,7 +15,7 @@
 #include "rx_core.h"
 #include "rx_data.h"
 #include "util_rbuf.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 static inline uint64_t
 blk_get_seq(struct rx_context *ctx, struct rbuf_block *blk)

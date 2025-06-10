@@ -5,7 +5,7 @@
 #include <assert.h>
 
 #include "util_rbuf.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 struct rbuf *
 rbuf_alloc(size_t ring_size, size_t frag_size, size_t nfrag)

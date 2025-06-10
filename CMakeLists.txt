@@ -56,7 +56,7 @@ set(wfb_listener_srcs
 	src/frame_wfb.c
 	src/crypto_wfb.c
 	src/fec_wfb.c
-	src/util_log.c
+	src/util_msg.c
 	src/util_rbuf.c
 	src/compat.c
 	${RADIOTAP_SOURCES}
@@ -145,7 +145,7 @@ set(log_analysis_srcs
 	src/log_csv.c
 	src/log_json.c
 	src/log_summary.c
-	src/util_log.c
+	src/util_msg.c
 	src/compat.c
 )
 

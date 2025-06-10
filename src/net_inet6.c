@@ -19,7 +19,7 @@
 
 #include "wfb_params.h"
 #include "net_inet6.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 static void
 netinet6_rx(evutil_socket_t fd, short event, void *arg)

@@ -3,7 +3,7 @@
 #include <assert.h>
 
 #include "wfb_params.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 __attribute__((format(printf, 1, 2)))
 void

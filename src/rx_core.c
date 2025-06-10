@@ -13,7 +13,7 @@
 #include "rx_core.h"
 #include "rx_session.h"
 #include "rx_data.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 int
 rx_context_init(struct rx_context *ctx, uint32_t channel_id)

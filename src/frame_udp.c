@@ -5,7 +5,7 @@
 #include <assert.h>
 
 #include "frame_udp.h"
-#include "util_log.h"
+#include "util_msg.h"
 #include "compat.h"
 
 void

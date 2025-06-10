@@ -10,7 +10,7 @@
 #include "wfb_params.h"
 #include "rx_core.h"
 #include "compat.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 #include "log_raw.h"
 

@@ -11,7 +11,7 @@
 #include "rx_core.h"
 #include "rx_session.h"
 #include "frame_wfb.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 static void
 rx_session_dump(struct rx_context *ctx)

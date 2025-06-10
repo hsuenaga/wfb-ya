@@ -8,7 +8,7 @@
 
 #include "frame_wfb.h"
 #include "crypto_wfb.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 struct crypto_wfb_context ctx = {
 	.initialized = false

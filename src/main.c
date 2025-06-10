@@ -28,7 +28,7 @@
 #include "decode_h265.h"
 #endif
 
-#include "util_log.h"
+#include "util_msg.h"
 
 struct wfb_opt wfb_options = {
 	.rx_wireless = DEF_WRX,

@@ -7,7 +7,7 @@
 #include <gst/gst.h>
 
 #include "decode_h265.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 static void *
 loop(void *arg)

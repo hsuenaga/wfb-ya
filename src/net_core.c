@@ -9,7 +9,7 @@
 #include <event2/event.h>
 
 #include "net_core.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 int
 netcore_initialize(struct netcore_context *ctx)

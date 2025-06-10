@@ -11,7 +11,7 @@
 #include "compat.h"
 
 #include "frame_radiotap.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 void
 radiotap_tx_context_initialize(struct radiotap_tx_context *ctx,

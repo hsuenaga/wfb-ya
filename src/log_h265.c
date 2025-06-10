@@ -5,7 +5,7 @@
 #include <sys/time.h>
 
 #include "compat.h"
-#include "util_log.h"
+#include "util_msg.h"
 
 #include "log_raw.h"
 #include "log_h265.h"
