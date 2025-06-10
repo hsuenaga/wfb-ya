@@ -95,11 +95,97 @@ bus_call(GstBus *bus, GstMessage *msg, gpointer arg)
 }
 
 int
+wfb_gst_init_bus(struct wfb_gst_context *ctx)
+{
+	GstBus *bus;
+
+	assert(ctx);
+
+	bus = gst_element_get_bus(ctx->pipeline);
+	if (bus == NULL)
+		return -1;
+
+	ctx->bus_watch_id = gst_bus_add_watch(bus, bus_call, ctx);
+	gst_object_unref(bus);
+
+	return 0;
+}
+
+int
+wfb_gst_init_source(struct wfb_gst_context *ctx)
+{
+	GstCaps *caps;
+
+	assert(ctx);
+
+	ctx->source = gst_element_factory_make("appsrc", "source");
+	if (ctx->source == NULL)
+		return -1;
+
+	gst_util_set_object_arg (G_OBJECT (ctx->source), "format", "time");
+	caps = gst_caps_new_simple("application/x-rtp",
+			"media", G_TYPE_STRING, "video",
+			"clock-rate", G_TYPE_INT, 90000,
+			"encoding-name", G_TYPE_STRING, "H265",
+//			"framerate", G_TYPE_INT, 120,
+//			"payload", G_TYPE_INT, 96,
+			NULL);
+	if (caps == NULL)
+		return -1;
+
+	g_object_set(ctx->source, "caps", caps, NULL);
+	g_object_set(ctx->source, "block", TRUE, NULL);
+	g_object_set(ctx->source, "emit-signals", FALSE, NULL);
+	g_object_set(ctx->source, "is-live", TRUE, NULL);
+	g_object_set(ctx->source, "do-timestamp", FALSE, NULL);
+	gst_caps_unref(caps);
+
+	return 0;
+}
+
+int
+wfb_gst_init_codec(struct wfb_gst_context *ctx, const char *file)
+{
+	assert(ctx);
+
+	if (file) {
+		ctx->h265 = gst_element_factory_make("h265parse", "h265");
+		if (!ctx->h265) {
+			p_err("Cannot find H.265 parser.\n");
+			return -1;
+		}
+		p_info("Using h265parse\n");
+		return 0;
+	}
+
+	ctx->h265 = gst_element_factory_make("v4l2slh265dec", "h265");
+	if (ctx->h265) {
+		p_info("Uisng v4l2slh265dec\n");
+		return 0;
+	}
+	else {
+		ctx->h265 = gst_element_factory_make("avdec_h265", "h265");
+	}
+	if (ctx->h265) {
+		p_info("Uisng avdec_h265\n");
+		return 0;
+	}
+	else {
+		ctx->h265 = gst_element_factory_make("libde265dec", "h265");
+	}
+	if (ctx->h265) {
+		p_info("Uisng libde265dec\n");
+		return 0;
+	}
+
+	p_err("Cannot find H.265 codec.\n");
+	return -1;
+}
+
+int
 wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file)
 {
 	GstStateChangeReturn ret;
-	GstCaps *caps;
-	GstBus *bus;
 
 	assert(ctx);
 	memset(ctx, 0, sizeof(*ctx));
@@ -111,119 +197,73 @@ wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file)
 	gst_init(NULL, NULL);
 
 	p_debug("setup gst\n");
-	ctx->input_queue = gst_element_factory_make("queue", "input_queue");
-	ctx->source = gst_element_factory_make("appsrc", "source");
-	ctx->jitter = gst_element_factory_make("rtpjitterbuffer", "jitter");
-	ctx->rtp = gst_element_factory_make("rtph265depay", "rtp");
-	ctx->timestamp = gst_element_factory_make("h265timestamper", "timestamp");
-	if (file) {
-		ctx->h265 = gst_element_factory_make("h265parse", "h265");
-		if (!ctx->h265) {
-			p_err("Cannot find H.265 parser.\n");
-			return -1;
-		}
-		p_info("Using h265parse\n");
-		goto codec_ok;
-	}
-	ctx->h265 = gst_element_factory_make("v4l2slh265dec", "h265");
-	if (ctx->h265) {
-		p_info("Uisng v4l2slh265dec\n");
-		goto codec_ok;
-	}
-	else {
-		ctx->h265 = gst_element_factory_make("avdec_h265", "h265");
-	}
-	if (ctx->h265) {
-		p_info("Uisng avdec_h265\n");
-		goto codec_ok;
-	}
-	else {
-		ctx->h265 = gst_element_factory_make("libde265dec", "h265");
-	}
-	if (ctx->h265) {
-		p_info("Uisng libde265dec\n");
-		goto codec_ok;
-	}
-	else {
-		p_err("Cannot find H.265 codec.\n");
+
+	/* AppSrc: main thread */
+	if (wfb_gst_init_source(ctx) < 0) {
+		p_err("failed to initialize gst source element.\n");
 		return -1;
 	}
-codec_ok:
-	ctx->conv = gst_element_factory_make("videoconvert", "conv");
+
+	/* Input queue: RTP and CODEC thread */
+	ctx->input_queue = gst_element_factory_make("queue", "input_queue");
+
+	ctx->jitter = gst_element_factory_make("rtpjitterbuffer", "jitter");
+	g_object_set(ctx->jitter, "latency", 10, NULL); // [ms]
+							//
+	ctx->rtp = gst_element_factory_make("rtph265depay", "rtp");
+	g_object_set(ctx->rtp, "auto-header-extension", TRUE, NULL);
+
+	if (wfb_gst_init_codec(ctx, file) < 0) {
+		p_err("failed to initialize gst codec element.\n");
+		return -1;
+	}
+
+	/* Sink queue: writing file or playing movie thread */
 	ctx->sink_queue = gst_element_factory_make("queue", "sink_queue");
+
 	if (file) {
+		ctx->conv = gst_element_factory_make("h265timestamper", "conv");
 		ctx->mux = gst_element_factory_make("qtmux", "mux");
 		ctx->sink = gst_element_factory_make("filesink", "sink");
 		g_object_set(ctx->sink, "location", file, NULL);
-		g_object_set(ctx->sink, "sync", FALSE, NULL);
 	}
 	else {
+		ctx->conv = gst_element_factory_make("videoconvert", "conv");
 		ctx->mux = gst_element_factory_make("timeoverlay", "mux");
 		ctx->sink = gst_element_factory_make("autovideosink", "sink");
 		g_object_set(ctx->sink, "sync", TRUE, NULL);
 	}
 
+	/* Create pipeline with initialized elements above */
 	ctx->pipeline = gst_pipeline_new("main-pipeline");
 
+	p_debug("add elements\n");
 	gst_bin_add_many(GST_BIN(ctx->pipeline),
 	    ctx->source,
 	    ctx->input_queue,
 	    ctx->jitter,
 	    ctx->rtp,
 	    ctx->h265,
-	    ctx->timestamp,
 	    ctx->conv,
 	    ctx->sink_queue,
 	    ctx->mux,
 	    ctx->sink,
 	    NULL);
+
+	p_debug("link elements\n");
 	gst_element_link_many(
 	    ctx->source,
 	    ctx->input_queue,
 	    ctx->jitter,
 	    ctx->rtp,
 	    ctx->h265,
+	    ctx->conv,
+	    ctx->sink_queue,
+	    ctx->mux,
+	    ctx->sink,
 	    NULL);
 
-	if (file) {
-		gst_element_link_many(
-		    ctx->h265,
-		    ctx->timestamp,
-		    ctx->sink_queue,
-		    ctx->mux,
-		    ctx->sink,
-		    NULL);
-	}
-	else {
-		gst_element_link_many(
-		    ctx->h265,
-		    ctx->conv,
-		    ctx->sink_queue,
-		    ctx->mux,
-		    ctx->sink,
-		    NULL);
-	}
-
-	gst_util_set_object_arg (G_OBJECT (ctx->source), "format", "time");
-	caps = gst_caps_new_simple("application/x-rtp",
-			"media", G_TYPE_STRING, "video",
-			"clock-rate", G_TYPE_INT, 90000,
-			"encoding-name", G_TYPE_STRING, "H265",
-//			"framerate", G_TYPE_INT, 120,
-//			"payload", G_TYPE_INT, 96,
-			NULL);
-
-	g_object_set(ctx->source, "caps", caps, NULL);
-	g_object_set(ctx->source, "block", TRUE, NULL);
-	g_object_set(ctx->source, "emit-signals", FALSE, NULL);
-	g_object_set(ctx->source, "is-live", TRUE, NULL);
-	g_object_set(ctx->source, "do-timestamp", FALSE, NULL);
-	gst_caps_unref(caps);
-
-	g_object_set(ctx->jitter, "latency", 10, NULL); // [ms]
-
-	g_object_set(ctx->rtp, "auto-header-extension", TRUE, NULL);
-
+	/* Force change state to playing */
 	p_debug("start playing\n");
 	ret = gst_element_set_state(ctx->pipeline, GST_STATE_PLAYING);
 	if (ret == GST_STATE_CHANGE_FAILURE) {
@@ -232,10 +272,11 @@ codec_ok:
 		return -1;
 	}
 
-	bus = gst_element_get_bus(ctx->pipeline);
-	assert(bus);
-	ctx->bus_watch_id = gst_bus_add_watch(bus, bus_call, ctx);
-	gst_object_unref(bus);
+	/* BUS watcher for debug */
+	if (wfb_gst_init_bus(ctx) < 0) {
+		p_err("Cannot initialize gst message bus.\n");
+		return -1;
+	}
 
 	ctx->initialized = 1;
 
