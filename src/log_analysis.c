@@ -14,6 +14,8 @@
 #include "log_csv.h"
 #include "log_json.h"
 #include "log_summary.h"
+#include "log_h265.h"
+#include "log_write_h265.h"
 
 #include "wfb_params.h"
 #include "util_log.h"
@@ -26,6 +28,7 @@ struct log_analysis_opt options = {
 	.file_name_in = NULL,
 	.file_name_out = NULL,
 	.out_type = OUTPUT_CSV,
+	.local_play = false,
 };
 
 static void
@@ -39,16 +42,22 @@ print_help(const char *path)
 	printf("%s --WFB-YA log analyzer\n", name);
 	printf("\n");
 	printf("Synopsis:\n");
-	printf("\t%s [-f <name>] [-o <name>] [-t <type>] [-d]\n", name);
+	printf("\t%s [-f <name>] [-o <name>] [-t <type>] [-l] [-d]\n", name);
 	printf("Options:\n");
 	printf("\t-f <name> ... specify input file name. default: STDIN\n");
 	printf("\t-o <name> ... specify output file name. default: STDOUT\n");
 	printf("\t-t <type> ... specify output file format. default: csv\n");
+#ifdef ENABLE_GSTREAMER
+	printf("\t-l ... enable local play(GStreamer)\n");
+#endif
 	printf("\t-d ... enable debug log.\n");
 	printf("Output Foramt <type>:\n");
 	printf("\tcsv .. comma separated values(default).\n");
 	printf("\tjson .. javascript object.\n");
 	printf("\tsummary .. summary values.\n");
+#ifdef ENABLE_GSTREAMER
+	printf("\tmp4 .. write MP4 video.\n");
+#endif
 	printf("\tnone .. no output. error check only.\n");
 }
 
@@ -59,11 +68,8 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "df:o:t:h")) != -1) {
+	while ((ch = getopt(argc, argv, "f:o:t:w:ldh")) != -1) {
 		switch (ch) {
-			case 'd':
-				wfb_options.debug = 1;
-				break;
 			case 'f':
 				options.file_name_in = optarg;
 				break;
@@ -80,6 +86,11 @@ parse_options(int *argc0, char **argv0[])
 				else if (strcasecmp(optarg, "summary") == 0) {
 					options.out_type = OUTPUT_SUMMARY;
 				}
+#ifdef ENABLE_GSTREAMER
+				else if (strcasecmp(optarg, "mp4") == 0) {
+					options.out_type = OUTPUT_MP4;
+				}
+#endif
 				else if (strcasecmp(optarg, "none") == 0) {
 					options.out_type = OUTPUT_NONE;
 				}
@@ -89,6 +100,17 @@ parse_options(int *argc0, char **argv0[])
 					    optarg);
 					exit(0);
 				}
+				break;
+			case 'l':
+#ifdef ENABLE_GSTREAMER
+				options.local_play = true;
+#else
+				fprintf(stderr, "GStreamer is diabled.\n");
+				exit(0);
+#endif
+				break;
+			case 'd':
+				wfb_options.debug = 1;
 				break;
 			case 'h':
 			case '?':
@@ -106,7 +128,7 @@ parse_options(int *argc0, char **argv0[])
 }
 
 int
-main(int argc, char *argv[])
+_main(int argc, char *argv[])
 {
 	FILE *fp_in = NULL, *fp_out = NULL;
 	struct log_store *ls;
@@ -136,6 +158,13 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 
+#ifdef ENABLE_GSTREAMER
+	if (options.local_play) {
+		play_h265(ls);
+		exit(1);
+	}
+#endif
+
 	switch (options.out_type) {
 		case OUTPUT_CSV:
 			csv_serialize(fp_out, ls);
@@ -146,10 +175,26 @@ main(int argc, char *argv[])
 		case OUTPUT_SUMMARY:
 			summary_output(fp_out, ls);
 			break;
+		case OUTPUT_MP4:
+			if (fp_out)
+				fclose(fp_out);
+			write_mp4(options.file_name_out, ls);
+			break;
 		case OUTPUT_NONE:
 		default:
 			break;
 	}
 
 	exit(1);
+}
+
+int
+main(int argc, char *argv[])
+{
+#if defined(__APPLE__) && TARGET_OS_MAC && !TARGET_OS_IPHONE \
+    && defined(ENABLE_GSTREAMER)
+	return gst_macos_main((GstMainFunc) _main, argc, argv, NULL);
+#else
+	return _main(argc, argv);
+#endif
 }

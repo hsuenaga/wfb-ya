@@ -15,6 +15,7 @@ pkg_check_modules(LIBPCAP REQUIRED libpcap)
 pkg_check_modules(LIBSODIUM REQUIRED libsodium)
 if (ENABLE_GSTREAMER)
 	pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
+	pkg_check_modules(GSTREAMER_APP REQUIRED gstreamer-app-1.0)
 endif ()
 
 ## External module radiotap-libary
@@ -148,12 +149,32 @@ set(log_analysis_srcs
 	src/compat.c
 )
 
+if (ENABLE_GSTREAMER)
+set(log_analysis_libs
+	${GSTREAMER_APP_LIBRARIES}
+	
+)
+set(log_analysis_srcs
+	${log_analysis_srcs}
+	src/log_write_h265.c
+	src/log_h265.c
+)
+endif ()
+
 add_executable(log_analysis
 	${log_analysis_srcs}
 )
 
 target_include_directories(log_analysis PUBLIC
 	${wfb_listener_incs}
+)
+
+target_link_directories(log_analysis PUBLIC
+	${wfb_listener_libdirs}
+)
+
+target_link_libraries(log_analysis PUBLIC
+	${log_analysis_libs}
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")

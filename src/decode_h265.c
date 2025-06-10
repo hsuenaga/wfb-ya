@@ -135,7 +135,7 @@ decode_h265_context_init(struct decode_h265_context *ctx)
 	g_object_set(ctx->source, "caps", caps, NULL);
 	g_object_set(ctx->source, "block", FALSE, NULL);
 	g_object_set(ctx->source, "emit-signals", FALSE, NULL);
-	g_object_set(ctx->source, "is-live", TRUE, NULL);
+	g_object_set(ctx->source, "is-live", FALSE, NULL);
 	gst_caps_unref(caps);
 
 	g_object_set(ctx->sink, "sync", FALSE, NULL);

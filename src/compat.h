@@ -22,15 +22,6 @@
 #define DEF_ERX NULL
 #define DEF_ETX NULL
 #define DEF_KEY "./gs.key"
-#define	timespecsub(tsp, usp, vsp)				\
-do {								\
-	(vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;		\
-	(vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec;	\
-	if ((vsp)->tv_nsec < 0) {				\
-		(vsp)->tv_sec--;				\
-		(vsp)->tv_nsec += 1000000000L;			\
-	}							\
-} while (/* CONSTCOND */ 0)
 #else
 /* Linux */
 #include <endian.h>
@@ -39,19 +30,49 @@ do {								\
 #define DEF_ETX NULL
 #define DEF_KEY "./gs.key"
 extern char *basename_r(const char *path, char *bname);
-#define	timespecsub(tsp, usp, vsp)				\
-do {								\
-	(vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;		\
-	(vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec;	\
-	if ((vsp)->tv_nsec < 0) {				\
-		(vsp)->tv_sec--;				\
-		(vsp)->tv_nsec += 1000000000L;			\
-	}							\
-} while (/* CONSTCOND */ 0)
 #endif
 
 #ifndef NELEMS
 #define NELEMS(x) (sizeof((x))/sizeof((x)[0]))
+#endif
+
+#ifndef timespecclear
+#define	timespecclear(tvp)	((tvp)->tv_sec = (tvp)->tv_nsec = 0)
+#endif
+
+#ifndef timespecisset
+#define	timespecisset(tvp)	((tvp)->tv_sec || (tvp)->tv_nsec)
+#endif
+
+#ifndef timespeccmp
+#define	timespeccmp(tvp, uvp, cmp)					\
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
+	((tvp)->tv_nsec cmp (uvp)->tv_nsec) :				\
+	((tvp)->tv_sec cmp (uvp)->tv_sec))
+#endif
+
+#ifndef timespecadd
+#define	timespecadd(tvp, uvp, vvp)					\
+	do {								\
+		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec		\
+		(vvp)->tv_nsec = (tvp)->tv_nsec + (uvp)->tv_nsec;	\
+		if ((vvp)->tv_nsec >= 1000000000) {			\
+			(vvp)->tv_sec++;				\
+			(vvp)->tv_nsec -= 1000000000;			\
+		}							\
+	} while (0)
+#endif
+
+#ifndef timespecsub
+#define	timespecsub(tvp, uvp, vvp)					\
+	do {								\
+		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
+		(vvp)->tv_nsec = (tvp)->tv_nsec - (uvp)->tv_nsec;	\
+		if ((vvp)->tv_nsec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_nsec += 1000000000;			\
+		}							\
+	} while (0)
 #endif
 
 #endif /* __COMPAT_H__ */
