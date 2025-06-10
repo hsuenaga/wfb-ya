@@ -156,7 +156,7 @@ set(log_analysis_libs
 )
 set(log_analysis_srcs
 	${log_analysis_srcs}
-	src/log_write_h265.c
+	src/wfb_gst.c
 	src/log_h265.c
 )
 endif ()

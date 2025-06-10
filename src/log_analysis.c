@@ -15,7 +15,6 @@
 #include "log_json.h"
 #include "log_summary.h"
 #include "log_h265.h"
-#include "log_write_h265.h"
 
 #include "wfb_params.h"
 #include "util_log.h"
