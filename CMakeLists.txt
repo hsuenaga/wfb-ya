@@ -140,11 +140,11 @@ target_compile_options(wfb_listener PUBLIC
 )
 
 set(log_analysis_srcs
-	src/log_analysis.c
-	src/log_raw.c
-	src/log_csv.c
-	src/log_json.c
-	src/log_summary.c
+	src/log_analysis/log_analysis.c
+	src/log_analysis/log_raw.c
+	src/log_analysis/log_csv.c
+	src/log_analysis/log_json.c
+	src/log_analysis/log_summary.c
 	src/util_msg.c
 	src/compat.c
 )
@@ -157,16 +157,21 @@ set(log_analysis_libs
 set(log_analysis_srcs
 	${log_analysis_srcs}
 	src/wfb_gst.c
-	src/log_h265.c
+	src/log_analysis/log_h265.c
 )
 endif ()
+
+set(log_analysis_incs
+	${wfb_listener_incs}
+	src
+)
 
 add_executable(log_analysis
 	${log_analysis_srcs}
 )
 
 target_include_directories(log_analysis PUBLIC
-	${wfb_listener_incs}
+	${log_analysis_incs}
 )
 
 target_link_directories(log_analysis PUBLIC
