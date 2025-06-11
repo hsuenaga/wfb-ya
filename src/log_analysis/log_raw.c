@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
@@ -20,10 +21,10 @@ dump_header(struct rx_log_header *hd)
 	assert(hd);
 
 	p_debug("--- New Header---\n");
-	p_debug("SEQ: %llu\n", hd->seq);
+	p_debug("SEQ: %" PRIu64 "\n", hd->seq);
 	p_debug("TimeStamp: %ld.%09ld\n", hd->ts.tv_sec, hd->ts.tv_nsec);
 	p_debug("Size: %u\n", hd->size);
-	p_debug("Block: %llu\n", hd->block_idx);
+	p_debug("Block: %" PRIu64 "\n", hd->block_idx);
 	p_debug("Fragemnt: %u\n", hd->fragment_idx);
 	p_debug("FEC_K: %u\n", hd->fec_k);
 	p_debug("FEC_N: %u\n", hd->fec_n);

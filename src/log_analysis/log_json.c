@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -218,15 +219,15 @@ json_serialize(FILE *fp, struct log_store *ls)
 
 		obj_start(fp, NULL);
 
-		fprintfkv(fp, KEY_SQ, "%llu", kv->key);
+		fprintfkv(fp, KEY_SQ, "%" PRIu64 "", kv->key);
 		add_sep(fp);
 		add_nl(fp);
 
-		fprintfkv(fp, KEY_BI, "%llu", v->block_idx);
+		fprintfkv(fp, KEY_BI, "%" PRIu64 "", v->block_idx);
 		add_sep(fp);
 		add_nl(fp);
 
-		fprintfkv(fp, KEY_FI, "%llu", v->fragment_idx);
+		fprintfkv(fp, KEY_FI, "%" PRIu64 "", v->fragment_idx);
 		add_sep(fp);
 		add_nl(fp);
 

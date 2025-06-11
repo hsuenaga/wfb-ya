@@ -151,7 +151,7 @@ rx_log_frame(struct rx_context *ctx,
 		hd.dbm = INT16_MIN;
 	}
 
-	p_debug("Packet Log: SEQ %llu, BLK %llu, FRAG %u, SIZE %lu\n",
+	p_debug("Packet Log: SEQ %" PRIu64 ", BLK %" PRIu64 ", FRAG %u, SIZE %lu\n",
 	    hd.seq, hd.block_idx, hd.fragment_idx, size);
 
 	fwrite(&hd, sizeof(hd), 1, log->fp);

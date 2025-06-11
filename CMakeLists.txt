@@ -141,7 +141,7 @@ target_compile_options(wfb_listener PUBLIC
 	${wfb_listener_cflags}
 )
 
-set(log_analysis_srcs
+set(wfb_log_analysis_srcs
 	src/log_analysis/log_analysis.c
 	src/log_analysis/log_raw.c
 	src/log_analysis/log_csv.c
@@ -152,36 +152,36 @@ set(log_analysis_srcs
 )
 
 if (ENABLE_GSTREAMER)
-set(log_analysis_libs
+set(wfb_log_analysis_libs
 	${GSTREAMER_APP_LIBRARIES}
 	
 )
-set(log_analysis_srcs
-	${log_analysis_srcs}
+set(wfb_log_analysis_srcs
+	${wfb_log_analysis_srcs}
 	src/wfb_gst.c
 	src/log_analysis/log_h265.c
 )
 endif ()
 
-set(log_analysis_incs
+set(wfb_log_analysis_incs
 	${wfb_listener_incs}
 	src
 )
 
-add_executable(log_analysis
-	${log_analysis_srcs}
+add_executable(wfb_log_analysis
+	${wfb_log_analysis_srcs}
 )
 
-target_include_directories(log_analysis PUBLIC
-	${log_analysis_incs}
+target_include_directories(wfb_log_analysis PUBLIC
+	${wfb_log_analysis_incs}
 )
 
-target_link_directories(log_analysis PUBLIC
+target_link_directories(wfb_log_analysis PUBLIC
 	${wfb_listener_libdirs}
 )
 
-target_link_libraries(log_analysis PUBLIC
-	${log_analysis_libs}
+target_link_libraries(wfb_log_analysis PUBLIC
+	${wfb_log_analysis_libs}
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")

@@ -18,6 +18,7 @@
 
 #include "wfb_params.h"
 #include "util_msg.h"
+#include "compat.h"
 
 struct wfb_opt wfb_options = {
 	.debug = false

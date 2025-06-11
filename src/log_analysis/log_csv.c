@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -78,13 +79,13 @@ csv_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 		    &v->rx_src.sin6_addr, s_addr, sizeof(s_addr));
 	}
 
-	fprintfq(fp, "%llu", kv->key);
+	fprintfq(fp, "%" PRIu64 "", kv->key);
 	add_sep(fp);
         fprintfq(fp, "%ld.%09ld", v->ts.tv_sec, v->ts.tv_nsec);
 	add_sep(fp);
-	fprintfq(fp, "%llu", v->block_idx);
+	fprintfq(fp, "%" PRIu64 "", v->block_idx);
 	add_sep(fp);
-	fprintfq(fp, "%llu", v->fragment_idx);
+	fprintfq(fp, "%" PRIu64 "", v->fragment_idx);
 	add_sep(fp);
 	fprintfq(fp, "%s", s_addr);
 	add_sep(fp);

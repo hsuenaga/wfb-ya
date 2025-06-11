@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
@@ -82,7 +83,7 @@ radiotap_context_dump(const struct radiotap_context *ctx)
 		return;
 	}
 
-	p_info("TSFT: %llu\n", le64toh(*ctx->raw.tsft));
+	p_info("TSFT: %" PRIu64 "\n", le64toh(*ctx->raw.tsft));
 	p_info("FLAGS: 0x%02x\n", *ctx->raw.flags);
 	p_info("CHANNEL %d MHz, Flags 0x%04x\n",
 	    le16toh(ctx->raw.channel->freq),
