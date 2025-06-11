@@ -75,4 +75,19 @@ extern char *basename_r(const char *path, char *bname);
 	} while (0)
 #endif
 
+#ifndef TAILQ_FOREACH_SAFE
+#define TAILQ_FOREACH_SAFE(elm, head, field, tmpelm)			\
+        for ((elm) = TAILQ_FIRST(head);					\
+             (elm) && ((tmpelm) = TAILQ_NEXT((elm), field), 1);		\
+             (elm) = (tmpelm))
+#endif
+
+#ifndef TAILQ_FOREACH_REVERSE_SAFE
+#define	TAILQ_FOREACH_REVERSE_SAFE(var, head, headname, field, tvar)	\
+    for ((var) = TAILQ_LAST(head, headname);				\
+        (var) != TAILQ_END(head) &&					\
+        ((tvar) = TAILQ_PREV(var, headname, field), 1);			\
+        (var) = (tvar))
+#endif
+
 #endif /* __COMPAT_H__ */

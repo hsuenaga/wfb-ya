@@ -14,7 +14,9 @@ pkg_check_modules(LIBEVENT REQUIRED libevent)
 pkg_check_modules(LIBPCAP REQUIRED libpcap)
 pkg_check_modules(LIBSODIUM REQUIRED libsodium)
 if (ENABLE_GSTREAMER)
+	# libgstreamer-1.0-dev
 	pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
+	# libgstreamer-plugins-base1.0-dev
 	pkg_check_modules(GSTREAMER_APP REQUIRED gstreamer-app-1.0)
 endif ()
 

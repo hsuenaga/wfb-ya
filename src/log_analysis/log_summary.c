@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 #include "util_msg.h"
 
@@ -22,12 +23,12 @@ summary_output(FILE *fp, struct log_store *ls)
 	fprintf(fp, "Number of H.265 Frames: %u\n", ls->n_frames);
 	fprintf(fp, "Maximum frame size: %u\n", ls->max_frame_size);
 	fprintf(fp, "minimum frame size: %u\n", ls->min_frame_size);
-	fprintf(fp, "Total H.265 bytes: %llu\n", ls->total_bytes);
+	fprintf(fp, "Total H.265 bytes: %" PRIu64 "\n", ls->total_bytes);
 
 	TAILQ_FOREACH(kv, &ls->kvh, chain) {
 		if (kv->has_ethernet_frame)
 			continue;
-		p_debug("Sequence %llu recovered by FEC\n", kv->key);
+		p_debug("Sequence %" PRIu64 " recovered by FEC\n", kv->key);
 		n_fec++;
 	}
 	fprintf(fp, "Frame recovered using FEC: %d\n", n_fec);
