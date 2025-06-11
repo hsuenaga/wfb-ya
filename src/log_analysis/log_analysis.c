@@ -14,7 +14,9 @@
 #include "log_csv.h"
 #include "log_json.h"
 #include "log_summary.h"
+#ifdef ENABLE_GSTREAMER
 #include "log_h265.h"
+#endif
 
 #include "wfb_params.h"
 #include "util_msg.h"
@@ -176,10 +178,12 @@ _main(int argc, char *argv[])
 			summary_output(fp_out, ls);
 			break;
 		case OUTPUT_MP4:
+#ifdef ENABLE_GSTREAMER
 			if (fp_out)
 				fclose(fp_out);
 			write_mp4(options.file_name_out, ls);
 			break;
+#endif
 		case OUTPUT_NONE:
 		default:
 			break;
