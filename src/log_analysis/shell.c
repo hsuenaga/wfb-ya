@@ -6,7 +6,9 @@
 #include "log_json.h"
 #include "log_csv.h"
 #include "log_summary.h"
+#ifdef ENABLE_GSTREAMER
 #include "log_h265.h"
+#endif
 #include "log_raw.h"
 #include "util_msg.h"
 
@@ -118,6 +120,7 @@ shell_write_json(struct shell_context *ctx, struct shell_token *token)
 	return 0;
 }
 
+#ifdef ENABLE_GSTREAMER
 static int
 shell_write_mp4(struct shell_context *ctx, struct shell_token *token)
 {
@@ -146,6 +149,7 @@ shell_play(struct shell_context *ctx, struct shell_token *token)
 	play_h265(ctx->ls);
 	return 0;
 }
+#endif
 
 static int
 shell_stat(struct shell_context *ctx, struct shell_token *token)
@@ -226,7 +230,9 @@ shell_help(struct shell_context *ctx, struct shell_token *token)
 static struct shell_cmd_def write_cmds[] = {
 	{ "csv", NULL, shell_write_csv },
 	{ "json", NULL, shell_write_json },
+#ifdef ENABLE_GSTREAMER
 	{ "mp4", NULL, shell_write_mp4 },
+#endif
 	{NULL, NULL, NULL}
 };
 
@@ -248,7 +254,9 @@ static struct shell_cmd_def top_level[] = {
 	{ "ls", NULL, shell_ls },
 	{ "write", &write_tree, NULL},
 	{ "show", &show_tree, NULL},
+#ifdef ENABLE_GSTREAMER
 	{ "play", NULL, shell_play },
+#endif
 	{ "stat", NULL, shell_stat },
 	{ "load", NULL, shell_load },
 	{ "exit", NULL, shell_exit },
