@@ -13,6 +13,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBEVENT REQUIRED libevent)
 pkg_check_modules(LIBPCAP REQUIRED libpcap)
 pkg_check_modules(LIBSODIUM REQUIRED libsodium)
+#pkg_check_modules(LIBEDIT REQUIRED libedit)
 if (ENABLE_GSTREAMER)
 	# libgstreamer-1.0-dev
 	pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
@@ -147,6 +148,7 @@ set(wfb_log_analysis_srcs
 	src/log_analysis/log_csv.c
 	src/log_analysis/log_json.c
 	src/log_analysis/log_summary.c
+	src/log_analysis/shell.c
 	src/util_msg.c
 	src/compat.c
 )

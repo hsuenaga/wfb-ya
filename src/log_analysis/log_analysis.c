@@ -17,6 +17,7 @@
 #ifdef ENABLE_GSTREAMER
 #include "log_h265.h"
 #endif
+#include "shell.h"
 
 #include "wfb_params.h"
 #include "util_msg.h"
@@ -31,6 +32,7 @@ struct log_analysis_opt options = {
 	.file_name_out = NULL,
 	.out_type = OUTPUT_CSV,
 	.local_play = false,
+	.interactive = false,
 };
 
 static void
@@ -44,7 +46,8 @@ print_help(const char *path)
 	printf("%s --WFB-YA log analyzer\n", name);
 	printf("\n");
 	printf("Synopsis:\n");
-	printf("\t%s [-f <name>] [-o <name>] [-t <type>] [-l] [-d]\n", name);
+	printf("\t%s [-f <name>] [-o <name>] [-t <type>] [-l] [-i] [-d]\n",
+	    name);
 	printf("Options:\n");
 	printf("\t-f <name> ... specify input file name. default: STDIN\n");
 	printf("\t-o <name> ... specify output file name. default: STDOUT\n");
@@ -52,6 +55,7 @@ print_help(const char *path)
 #ifdef ENABLE_GSTREAMER
 	printf("\t-l ... enable local play(GStreamer)\n");
 #endif
+	printf("\t-i ... interactive mode\n");
 	printf("\t-d ... enable debug log.\n");
 	printf("Output Foramt <type>:\n");
 	printf("\tcsv .. comma separated values(default).\n");
@@ -70,7 +74,7 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "f:o:t:w:ldh")) != -1) {
+	while ((ch = getopt(argc, argv, "f:o:t:w:lidh")) != -1) {
 		switch (ch) {
 			case 'f':
 				options.file_name_in = optarg;
@@ -111,6 +115,9 @@ parse_options(int *argc0, char **argv0[])
 				exit(0);
 #endif
 				break;
+			case 'i':
+				options.interactive = true;
+				break;
 			case 'd':
 				wfb_options.debug = 1;
 				break;
@@ -137,6 +144,13 @@ _main(int argc, char *argv[])
 
 	parse_options(&argc, &argv);
 
+	if (options.interactive) {
+		if (shell() < 0)
+			exit(0);
+
+		exit(1);
+	}
+
 	if (options.file_name_in) {
 		fp_in = fopen(options.file_name_in, "r");
 		if (fp_in == NULL) {
@@ -144,7 +158,7 @@ _main(int argc, char *argv[])
 			exit(0);
 		}
 	}
-	if (options.file_name_out) {
+	if (options.file_name_out && options.local_play) {
 		fp_out = fopen(options.file_name_out, "w");
 		if (fp_out == NULL) {
 			p_err("Invalid file name: %s\n", options.file_name_out);

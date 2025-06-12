@@ -34,5 +34,8 @@ extern int wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file);
 extern void wfb_gst_context_deinit(struct wfb_gst_context *ctx);
 extern int wfb_gst_thread_start(struct wfb_gst_context *ctx);
 extern int wfb_gst_thread_join(struct wfb_gst_context *ctx);
-extern void wfb_gst(struct timespec *ts, uint8_t *data, size_t size, void *arg);
+
+/* opaque argument 'void *arg' must be wfb_gst_context */
+extern void wfb_gst_write(struct timespec *ts, uint8_t *data, size_t size, void *arg);
+extern void wfb_gst_eos(void *arg);
 #endif /* __WFB_GST_H__ */

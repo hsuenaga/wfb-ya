@@ -16,6 +16,7 @@ struct log_analysis_opt {
 	char *file_name_out;
 	enum output_types out_type;
 	bool local_play;
+	bool interactive;
 };
 
 #endif /* __LOG_ANALYSIS_H__ */

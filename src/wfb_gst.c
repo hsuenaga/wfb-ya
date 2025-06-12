@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <assert.h>
 #include <pthread.h>
@@ -10,6 +11,115 @@
 
 #include "wfb_gst.h"
 #include "util_msg.h"
+
+static const char *
+s_state(GstState state)
+{
+	switch (state) {
+		case GST_STATE_VOID_PENDING:
+			return "PENDING";
+		case GST_STATE_NULL:
+			return "NULL";
+		case GST_STATE_READY:
+			return "READY";
+		case GST_STATE_PAUSED:
+			return "PAUSED";
+		case GST_STATE_PLAYING:
+			return "PLAYING";
+		default:
+			break;
+	}
+
+	return "(Unknown)";
+}
+
+static void
+handle_state_changed(GstMessage *msg)
+{
+	GstState old_state, new_state;
+
+	gst_message_parse_state_changed (msg, &old_state, &new_state, NULL);
+	p_debug("Element %s changed state from %s to %s.\n",
+	    GST_OBJECT_NAME (msg->src),
+	    gst_element_state_get_name (old_state),
+	    gst_element_state_get_name (new_state));
+}
+
+static GstState
+check_state(struct wfb_gst_context *ctx)
+{
+	GstStateChangeReturn rc;
+	GstState state, pending;
+	GstClockTime to = 1000 * 1000; /* [ns] */
+
+	p_err("Check\n");
+retry:
+	rc = gst_element_get_state(ctx->pipeline,
+	    &state, &pending, to);
+	if (rc == GST_STATE_CHANGE_FAILURE) {
+		p_err("Cannot connect to GStreamer.\n");
+		return GST_STATE_NULL;
+	}
+	if (pending != GST_STATE_VOID_PENDING) {
+		p_err("%s => %s\n", s_state(state), s_state(pending));
+		goto retry;
+	}
+	p_err("OK\n");
+
+	return state;
+}
+
+static int
+change_state(struct wfb_gst_context *ctx, GstState state)
+{
+	GstStateChangeReturn rc;
+
+	if (GST_STATE(ctx->pipeline) == state)
+		return 0;
+
+	rc = gst_element_set_state(ctx->pipeline, state);
+	if (rc == GST_STATE_CHANGE_FAILURE) {
+		p_err("Cannot connect to GStreamer.\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
+ensure_state(struct wfb_gst_context *ctx, GstState state)
+{
+	GstStateChangeReturn rc;
+
+	if (GST_STATE(ctx->pipeline) == state)
+		return 0;
+
+	rc = gst_element_set_state(ctx->pipeline, state);
+	if (rc == GST_STATE_CHANGE_FAILURE) {
+		p_err("Cannot connect to GStreamer.\n");
+		return -1;
+	}
+	if (rc == GST_STATE_CHANGE_ASYNC) {
+		if (check_state(ctx) != state) {
+			p_err("Inconsistence state\n");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static bool
+is_stop(struct wfb_gst_context *ctx)
+{
+	GstState state;
+
+	state = GST_STATE(ctx->pipeline);
+
+	return (state == GST_STATE_NULL);
+}
+
+ /* wait for state change */
 
 static void
 set_timestamp(GstBuffer *buf, struct timespec *ts)
@@ -83,6 +193,8 @@ bus_call(GstBus *bus, GstMessage *msg, gpointer arg)
 			}
 			break;
 		case GST_MESSAGE_STATE_CHANGED:
+			handle_state_changed(msg);
+			break;
 		case GST_MESSAGE_STREAM_STATUS:
 		case GST_MESSAGE_STREAM_START:
 		case GST_MESSAGE_ELEMENT:
@@ -239,7 +351,11 @@ wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file)
 	else {
 		ctx->conv = gst_element_factory_make("videoconvert", "conv");
 		ctx->mux = gst_element_factory_make("timeoverlay", "mux");
+#ifdef __APPLE__
+		ctx->sink = gst_element_factory_make("osxvideosink", "sink");
+#else
 		ctx->sink = gst_element_factory_make("autovideosink", "sink");
+#endif
 		g_object_set(ctx->sink, "sync", TRUE, NULL);
 	}
 
@@ -304,10 +420,13 @@ wfb_gst_context_deinit(struct wfb_gst_context *ctx)
 	}
 	pthread_mutex_unlock(&ctx->lock);
 
-	pthread_cond_wait(&ctx->eos, &ctx->lock);
+	if (check_state(ctx) == GST_STATE_PLAYING) {
+		gst_app_src_end_of_stream(GST_APP_SRC(ctx->source));
+		pthread_cond_wait(&ctx->eos, &ctx->lock);
+	}
 
 	ctx->closing = 1;
-	gst_element_set_state(ctx->pipeline, GST_STATE_NULL);
+	ensure_state(ctx, GST_STATE_NULL);
 	g_main_loop_quit(ctx->loop);
 	gst_object_unref(ctx->pipeline);
 	pthread_join(ctx->tid_loop, &ret);
@@ -336,7 +455,7 @@ wfb_gst_thread_join(struct wfb_gst_context *ctx)
 }
 
 void
-wfb_gst(struct timespec *ts, uint8_t *data, size_t size, void *arg)
+wfb_gst_write(struct timespec *ts, uint8_t *data, size_t size, void *arg)
 {
 	struct wfb_gst_context *ctx = arg;
 	GstBuffer *buf;
@@ -346,15 +465,13 @@ wfb_gst(struct timespec *ts, uint8_t *data, size_t size, void *arg)
 
 	if (!ctx->initialized)
 		return;
-	if (ts == NULL) {
-		gst_app_src_end_of_stream(GST_APP_SRC(ctx->source));
+	if (ts == NULL || data == NULL || size == 0)
 		return;
-	}
+
+	change_state(ctx, GST_STATE_PLAYING);
 
 	buf = gst_buffer_new_memdup(data, size);
 	assert(buf);
-	/*
-	*/
 	set_timestamp(buf, ts);
 
 	gst_app_src_push_buffer(GST_APP_SRC(ctx->source), buf);
@@ -368,4 +485,19 @@ wfb_gst(struct timespec *ts, uint8_t *data, size_t size, void *arg)
 #endif
 
 	return;
+}
+
+void
+wfb_gst_eos(void *arg)
+{
+	struct wfb_gst_context *ctx = (struct wfb_gst_context *)arg;
+
+	assert(ctx);
+
+	if (is_stop(ctx))
+		return;
+
+	gst_app_src_end_of_stream(GST_APP_SRC(ctx->source));
+	pthread_cond_wait(&ctx->eos, &ctx->lock);
+	ensure_state(ctx, GST_STATE_READY);
 }
