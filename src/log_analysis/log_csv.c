@@ -8,8 +8,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "util_attribute.h"
-#include "compat.h"
+#include "../util_attribute.h"
+#include "../compat.h"
 
 #include "log_analysis.h"
 #include "log_raw.h"
@@ -57,7 +57,8 @@ csv_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 		"Source Node",
 		"Frequency",
 		"dbm",
-		"Data Size"
+		"Data Size",
+		"Corrupted"
 	};
 	char s_addr[INET6_ADDRSTRLEN] = {'\0'};
 	int i;
@@ -96,7 +97,10 @@ csv_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 		fprintfq(fp, "%d", v->dbm);
 	add_sep(fp);
 	fprintfq(fp, "%u", v->size);
+	add_sep(fp);
+	fprintfq(fp, "%d", v->corrupt ? 1 : 0);
 	add_nl(fp);
+
 
 	return 0;
 }

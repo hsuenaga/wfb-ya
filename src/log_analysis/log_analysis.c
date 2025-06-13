@@ -9,6 +9,10 @@
 #include <sys/time.h>
 #include <sys/param.h>
 
+#include "../wfb_params.h"
+#include "../util_msg.h"
+#include "../compat.h"
+
 #include "log_analysis.h"
 #include "log_raw.h"
 #include "log_csv.h"
@@ -18,10 +22,6 @@
 #include "log_h265.h"
 #endif
 #include "shell.h"
-
-#include "wfb_params.h"
-#include "util_msg.h"
-#include "compat.h"
 
 struct wfb_opt wfb_options = {
 	.debug = false

@@ -8,9 +8,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "util_attribute.h"
-#include "compat.h"
+#include "../util_attribute.h"
+#include "../compat.h"
 
+#include "../rx_log.h"
 #include "log_analysis.h"
 #include "log_raw.h"
 #include "log_csv.h"
@@ -144,6 +145,7 @@ static int
 json_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 {
 	char s_addr[INET6_ADDRSTRLEN] = {'\0'};
+	const char *s_type;
 	bool has_addr = false;
 	int i;
 
@@ -157,31 +159,46 @@ json_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 
 	obj_start(fp, NULL);
 
+	/* timestamp */
         fprintfkv(fp, KEY_TS, "%ld.%09ld", v->ts.tv_sec, v->ts.tv_nsec);
-	/*
-	 * type: rx ... received from multicast
-	 * type: tx ... transmit to decoder
-	 */
-	if (v->size == 0) {
-		add_sep(fp);
-		fprintfkv(fp, KEY_TYPE, "Receive");
+
+	/* event type */
+	switch (v->type) {
+	case FRAME_TYPE_CORRUPT:
+		s_type = "Corrupt";
+		break;
+	case FRAME_TYPE_INET6:
+		s_type = "Receive";
+		break;
+	case FRAME_TYPE_DECODE:
+		s_type = "Decode";
+		break;
+	default:
+		s_type = "Unknown";
+		break;
 	}
-	else {
-		add_sep(fp);
-		fprintfkv(fp, KEY_TYPE, "Decode");
-	}
+	add_sep(fp);
+	fprintfkv(fp, KEY_TYPE, "%s", s_type);
+
+	/* address */
 	if (s_addr[0] != '\0') {
 		add_sep(fp);
 		fprintfkv(fp, KEY_SN, "%s", s_addr);
 	}
+
+	/* frequency */
 	if (v->freq > 0) {
 		add_sep(fp);
 		fprintfkv(fp, KEY_FQ, "%u", v->freq);
 	}
-	if (v->dbm >= INT8_MIN && v->dbm <= INT8_MAX) {
+
+	/* dbm */
+	if (v->dbm >= DBM_MIN && v->dbm <= DBM_MAX) {
 		add_sep(fp);
 		fprintfkv(fp, KEY_DB, "%d", v->dbm);
 	}
+
+	/* size */
 	if (v->size > 0) {
 		add_sep(fp);
 		fprintfkv(fp, KEY_DS, "%u", v->size);

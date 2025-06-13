@@ -23,27 +23,12 @@ struct rx_decode_handler {
 	void *arg;
 };
 
-struct rx_logger {
+struct rx_log_handler {
+	char file_name[PATH_MAX];
+	int seq;
 	FILE *fp;
 };
 
-struct rx_log_header {
-	// LE
-	uint64_t seq; // act as key
-	struct timespec ts;
-	uint32_t size;
-	uint64_t block_idx;
-	uint8_t fragment_idx;
-	uint8_t fec_k;
-	uint8_t fec_n;
-
-	// Network Byte order
-	struct sockaddr_in6 rx_src;
-
-	// Host Byte order
-	uint16_t freq;
-	int16_t dbm;
-};
 
 struct rx_context {
 	struct pcap_context pcap;
@@ -79,7 +64,8 @@ struct rx_context {
 	struct rx_decode_handler decode_handler[RX_MAX_DECODE];
 	int n_decode_handler;
 
-	struct rx_logger log_handler;
+	/* log */
+	struct rx_log_handler log_handler;
 };
 
 static inline uint64_t
@@ -102,9 +88,6 @@ extern void rx_decode_frame(struct rx_context *ctx, uint8_t *data, size_t size);
 extern int rx_context_set_mirror(struct rx_context *ctx,
     void (*mirror)(struct iovec *iov, int iovcnt, void *arg), void *decode_arg);
 extern void rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size);
-extern void rx_log_frame(struct rx_context *ctx,
-    uint64_t block_idx, uint8_t fragment_idx, uint8_t *data, size_t size);
-extern void rx_log_create(struct rx_context *ctx);
 extern void rx_context_dump(struct rx_context *ctx);
 extern int rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen);
 extern int rx_frame_udp(struct rx_context *ctx, void *rxbuf, size_t rxlen);

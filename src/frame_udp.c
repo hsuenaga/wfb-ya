@@ -5,6 +5,7 @@
 #include <assert.h>
 
 #include "frame_udp.h"
+#include "rx_log.h"
 #include "util_msg.h"
 #include "compat.h"
 
@@ -27,10 +28,11 @@ udp_frame_parse(void *data, size_t size, struct udp_context *ctx)
 	ctx->hdr = (struct wfb_udp_header *)data;
 	ctx->hdrlen = sizeof(struct wfb_udp_header);
 
-	ctx->freq = be16toh(ctx->hdr->freq);
-	ctx->dbm = be16toh(ctx->hdr->dbm);
-	if (ctx->dbm < INT8_MIN || ctx->dbm > INT8_MAX)
-		ctx->dbm = INT16_MIN;
+	ctx->freq = ntohs(ctx->hdr->freq);
+	ctx->dbm = ntohs(ctx->hdr->dbm);
+	if (ctx->dbm < DBM_MIN || ctx->dbm > DBM_MAX)
+		ctx->dbm = DBM_INVAL;
+	ctx->flags = ntohl(ctx->hdr->flags);
 
 	return ctx->hdrlen;
 }
@@ -44,14 +46,15 @@ udp_frame_build(struct udp_context *ctx)
 	ctx->hdr = &ctx->raw;
 	ctx->hdrlen = sizeof(ctx->raw);
 
-	ctx->hdr->freq = htobe16(ctx->freq);
-	if (ctx->dbm >= INT8_MIN && ctx->dbm  <= INT8_MAX) {
-		ctx->hdr->dbm = htobe16(ctx->dbm);
+	ctx->hdr->freq = htons(ctx->freq);
+	if (ctx->dbm >= DBM_MIN && ctx->dbm  <= DBM_MAX) {
+		ctx->hdr->dbm = htons(ctx->dbm);
 	}
 	else {
-		int16_t v = INT16_MIN; 
-		ctx->hdr->dbm = htobe16(v);
+		int16_t v = DBM_INVAL; 
+		ctx->hdr->dbm = htons(v);
 	}
+	ctx->hdr->flags = htonl(ctx->flags);
 
 	return ctx->hdrlen;
 }

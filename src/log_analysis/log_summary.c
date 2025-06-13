@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
-#include "util_msg.h"
+#include "../util_msg.h"
 
 #include "log_summary.h"
 

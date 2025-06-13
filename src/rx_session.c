@@ -10,6 +10,7 @@
 #include "crypto_wfb.h"
 #include "rx_core.h"
 #include "rx_session.h"
+#include "rx_log.h"
 #include "frame_wfb.h"
 #include "util_msg.h"
 

@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "../util_msg.h"
+
 #include "log_json.h"
 #include "log_csv.h"
 #include "log_summary.h"
@@ -10,7 +12,6 @@
 #include "log_h265.h"
 #endif
 #include "log_raw.h"
-#include "util_msg.h"
 
 #include "shell.h"
 

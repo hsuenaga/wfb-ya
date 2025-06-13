@@ -14,6 +14,7 @@
 #include "crypto_wfb.h"
 #include "rx_core.h"
 #include "rx_data.h"
+#include "rx_log.h"
 #include "util_rbuf.h"
 #include "util_msg.h"
 
@@ -55,7 +56,6 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 		return;
 	}
 
-
 	if (ctx->n_decode_handler > 0)
 		rx_decode_frame(ctx, (uint8_t *)(hdr + 1), pktlen);
 	else
@@ -64,7 +64,7 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 		    seq, pktlen, blk->index, blk->fragment_to_send,
 		    is_fec ? "YES" : "NO");
 
-	rx_log_frame(ctx, blk->index, blk->fragment_to_send,
+	rx_log_decode(ctx, blk->index, blk->fragment_to_send,
 	    (uint8_t *)(hdr + 1), pktlen);
 
 	return;
@@ -235,7 +235,8 @@ rx_data(struct rx_context *ctx)
 		p_err("Fragment index out of range.\n");
 		return -1;
 	}
-	rx_log_frame(ctx, ctx->wfb.block_idx, ctx->wfb.fragment_idx, NULL, 0);
+	rx_log_frame(ctx,
+	    ctx->wfb.block_idx, ctx->wfb.fragment_idx, ctx->wfb.pktlen);
 
 	fragment_idx = ctx->wfb.fragment_idx;
 

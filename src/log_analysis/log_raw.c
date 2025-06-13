@@ -8,28 +8,27 @@
 #include <sys/time.h>
 #include <assert.h>
 
-#include "wfb_params.h"
-#include "rx_core.h"
-#include "compat.h"
-#include "util_msg.h"
+#include "../wfb_params.h"
+#include "../rx_log.h"
+#include "../compat.h"
+#include "../util_msg.h"
 
 #include "log_raw.h"
 
 static void
-dump_header(struct rx_log_header *hd)
+dump_header(struct rx_log_frame_header *hd)
 {
 	assert(hd);
 
 	p_debug("--- New Header---\n");
-	p_debug("SEQ: %" PRIu64 "\n", hd->seq);
-	p_debug("TimeStamp: %ld.%09ld\n", hd->ts.tv_sec, hd->ts.tv_nsec);
-	p_debug("Size: %u\n", hd->size);
-	p_debug("Block: %" PRIu64 "\n", hd->block_idx);
+	p_debug("SEQ: %" PRIu64 "\n", le64toh(hd->seq));
+	p_debug("TimeStamp: %" PRIu64 ".%09" PRIu64 "\n",
+	    le64toh(hd->tv_sec), le64toh(hd->tv_nsec));
+	p_debug("Size: %u\n", le32toh(hd->size));
+	p_debug("Block: %" PRIu64 "\n", le64toh(hd->block_idx));
 	p_debug("Fragemnt: %u\n", hd->fragment_idx);
-	p_debug("FEC_K: %u\n", hd->fec_k);
-	p_debug("FEC_N: %u\n", hd->fec_n);
-	p_debug("FREQ: %u\n", hd->freq);
-	p_debug("dbm: %d\n", hd->dbm);
+	p_debug("FREQ: %u\n", le16toh(hd->freq));
+	p_debug("dbm: %d\n", le16toh(hd->dbm));
 }
 
 static struct log_data_v *
@@ -115,14 +114,9 @@ process_payload(FILE *fp, struct log_data_v *v, ssize_t size)
 }
 
 static ssize_t
-process_header(FILE *fp, struct log_store *ls)
+process_file_header(FILE *fp, struct log_store *ls)
 {
-	struct rx_log_header hd;
-	struct log_data_v *v;
-	static struct timespec epoch = {
-		.tv_sec = 0,
-		.tv_nsec = 0
-	};
+	struct rx_log_file_header hd;
 
 	assert(fp);
 
@@ -138,11 +132,50 @@ process_header(FILE *fp, struct log_store *ls)
 		p_err("Unknown I/O failure.\n");
 		return -1;
 	}
-	if (epoch.tv_sec == 0) {
-		epoch = hd.ts;
+	if (le32toh(hd.signature) != RX_LOG_SIGNATURE) {
+		p_err("Invalid file signature.\n");
+		return -1;
 	}
-	timespecsub(&hd.ts, &epoch, &hd.ts);
+	if (hd.version != RX_LOG_VERSION) {
+		p_err("Unknown Log version.\n");
+		return -1;
+	}
+	ls->channel_id = le32toh(hd.channel_id);
+	ls->fec_type = hd.fec_type;
+	ls->fec_k = hd.fec_k;
+	ls->fec_n = hd.fec_n;
+
+	return sizeof(hd);
+}
+
+static ssize_t
+process_frame_header(FILE *fp, struct log_store *ls)
+{
+	struct rx_log_frame_header hd;
+	struct log_data_v *v;
+	struct timespec ts;
+
+	assert(fp);
+
+	if (fread(&hd, sizeof(hd), 1, fp) <= 0) {
+		if (feof(fp)) {
+			p_debug("End of File\n");
+			return -1;
+		}
+		else if (ferror(fp)) {
+			p_err("%s\n", strerror(errno));
+			return -1;
+		}
+		p_err("Unknown I/O failure.\n");
+		return -1;
+	}
 	dump_header(&hd);
+	ts.tv_sec = (time_t)(le64toh(hd.tv_sec));
+	ts.tv_nsec = (long)(le64toh(hd.tv_nsec));
+	if (ls->epoch.tv_sec == 0) {
+		ls->epoch = ts;
+	}
+	timespecsub(&ts, &ls->epoch, &ts);
 
 	v = log_v_alloc(ls, hd.seq);
 	if (v == NULL)
@@ -150,50 +183,56 @@ process_header(FILE *fp, struct log_store *ls)
 
 	assert(v->kv);
 
-	if (hd.size > 0) {
-		v->size = hd.size;
-	}
-	else {
-		v->kv->has_ethernet_frame = true;
-	}
+	v->size = hd.size;
+
 	if (v->ts.tv_sec == 0 && v->ts.tv_nsec == 0)
-		v->ts = hd.ts;
+		v->ts = ts;
 	v->block_idx = hd.block_idx;
 	v->fragment_idx = hd.fragment_idx;
-	if (hd.freq != 0)
-		v->freq = hd.freq;
-	if (hd.dbm != INT16_MIN)
-		v->dbm = hd.dbm;
-	else
-		v->dbm = INT16_MIN;
+	v->freq = hd.freq;
+	v->dbm = hd.dbm;
+	v->type = hd.type;
 
-	if (hd.rx_src.sin6_family == AF_INET6) {
-		v->rx_src = hd.rx_src;
-	}
+	switch (hd.type) {
+	case FRAME_TYPE_CORRUPT:
+		v->kv->has_ethernet_frame = true;
+		v->kv->has_corrupted_frame = true;
+		v->rx_src.sin6_family = AF_INET6;
+		v->rx_src.sin6_port = 0;
+		v->corrupt = true;
+		memcpy(&v->rx_src.sin6_addr, hd.rx_src,
+		    sizeof(v->rx_src.sin6_addr));
+		break;
+	case FRAME_TYPE_INET6:
+		v->kv->has_ethernet_frame = true;
+		v->rx_src.sin6_family = AF_INET6;
+		v->rx_src.sin6_port = 0;
+		memcpy(&v->rx_src.sin6_addr, hd.rx_src,
+		    sizeof(v->rx_src.sin6_addr));
 
-	if (process_payload(fp, v, hd.size) < 0)
-		return -1;
-
-	// update counters
-	if (hd.size > 0) {
-		/* H.265 frames */
-		ls->n_frames++;
-		if (ls->max_frame_size < hd.size)
-			ls->max_frame_size = hd.size;
-		if (ls->min_frame_size > hd.size)
-			ls->min_frame_size = hd.size;
-		ls->total_bytes += hd.size;
-	}
-	else {
-		/* Raw ethernet frames */
 		ls->n_pkts++;
-		if (hd.dbm != INT16_MIN) {
+		if (hd.dbm != DBM_INVAL) {
 			ls->n_pkts_with_dbm++;
 			if (ls->max_dbm < hd.dbm)
 				ls->max_dbm = hd.dbm;
 			if (ls->min_dbm > hd.dbm)
 				ls->min_dbm = hd.dbm;
 		}
+		break;
+	case FRAME_TYPE_DECODE:
+		if (process_payload(fp, v, hd.size) < 0)
+			return -1;
+
+		ls->n_frames++;
+		if (ls->max_frame_size < hd.size)
+			ls->max_frame_size = hd.size;
+		if (ls->min_frame_size > hd.size)
+			ls->min_frame_size = hd.size;
+		ls->total_bytes += hd.size;
+		break;
+	default:
+		p_err("Unknown frame type %d.\n", hd.type);
+		break;
 	}
 
 	return hd.size;
@@ -213,14 +252,19 @@ load_log(FILE *fp)
 		return NULL;
 
 	memset(ls, 0, sizeof(*ls));
-	ls->max_dbm = INT16_MIN;
-	ls->min_dbm = INT16_MAX;
-	ls->max_frame_size = 0;
-	ls->min_frame_size = UINT32_MAX;
+	ls->max_dbm = DBM_MIN;
+	ls->min_dbm = DBM_MAX;
+	ls->max_frame_size = FRAME_SIZE_MIN;
+	ls->min_frame_size = FRAME_SIZE_MAX;
 	TAILQ_INIT(&ls->kvh);
 
+	if (process_file_header(fp, ls) < 0) {
+		free(ls);
+		return NULL;
+	}
+
 	for (;;) {
-		size = process_header(fp, ls);
+		size = process_frame_header(fp, ls);
 		if (size < 0)
 			break;
 	}

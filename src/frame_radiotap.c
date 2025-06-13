@@ -12,6 +12,7 @@
 #include "compat.h"
 
 #include "frame_radiotap.h"
+#include "rx_log.h"
 #include "util_msg.h"
 
 void
@@ -217,7 +218,7 @@ radiotap_frame_parse(void *data, size_t size, struct radiotap_context *ctx)
 		ctx->dbm = *ctx->raw.dbm_antenna_signal;
 	}
 	else {
-		ctx->dbm = INT16_MIN;
+		ctx->dbm = DBM_INVAL;
 	}
 
 	return iter._max_length;

@@ -13,6 +13,7 @@
 #include "rx_core.h"
 #include "rx_session.h"
 #include "rx_data.h"
+#include "rx_log.h"
 #include "util_msg.h"
 
 int
@@ -87,13 +88,21 @@ void
 rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size)
 {
 	struct iovec iov[2];
+	uint32_t flags = 0;
+	int iovcnt = 2;
 	int i;
 
 	if (ctx->n_mirror_handler <= 0)
 		return;
 
+	if (data == NULL || size == 0) {
+		flags |= UDP_FLAG_CORRUPT;
+		iovcnt = 1;
+	}
+
 	ctx->udp.freq = ctx->freq;
 	ctx->udp.dbm = ctx->dbm;
+	ctx->udp.flags = flags;
 	udp_frame_build(&ctx->udp);
 
 	iov[0].iov_base = ctx->udp.hdr;
@@ -106,76 +115,8 @@ rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size)
 		if (ctx->mirror_handler[i].func == NULL)
 			continue;
 
-		ctx->mirror_handler[i].func(iov, 2, ctx->mirror_handler[i].arg);
-	}
-}
-
-void
-rx_log_frame(struct rx_context *ctx,
-    uint64_t block_idx, uint8_t fragment_idx, uint8_t *data, size_t size)
-{
-	struct rx_log_header hd;
-	struct rx_logger *log = &ctx->log_handler;
-	struct timespec ts;
-
-	if (log->fp == NULL)
-		return;
-	if (data == NULL)
-		size = 0;
-	if (size == 0)
-		data = NULL;
-
-	hd.seq = block_idx * ctx->fec_n + fragment_idx;
-
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
-		hd.ts = ts;
-	}
-	else {
-		hd.ts.tv_sec = 0;
-		hd.ts.tv_nsec = 0;
-	}
-	hd.block_idx = block_idx;
-	hd.fragment_idx = fragment_idx;;
-	hd.fec_k = ctx->fec_k;
-	hd.fec_n = ctx->fec_n;
-	hd.size = size;
-	if (size == 0) {
-		if (ctx->rx_src.sin6_family == AF_INET6)
-			hd.rx_src = ctx->rx_src;
-		hd.freq = ctx->freq;
-		hd.dbm = ctx->dbm;
-	}
-	else {
-		hd.rx_src.sin6_family = AF_UNSPEC;
-		hd.freq = 0;
-		hd.dbm = INT16_MIN;
-	}
-
-	p_debug("Packet Log: SEQ %" PRIu64 ", BLK %" PRIu64 ", FRAG %u, SIZE %lu\n",
-	    hd.seq, hd.block_idx, hd.fragment_idx, size);
-
-	fwrite(&hd, sizeof(hd), 1, log->fp);
-	if (data && size > 0) {
-		fwrite(data, size, 1, log->fp);
-	}
-	fflush(log->fp);
-}
-
-void
-rx_log_create(struct rx_context *ctx)
-{
-	struct rx_logger *log = &ctx->log_handler;
-
-	if (log->fp)
-		fclose(log->fp);
-	if (wfb_options.log_file == NULL) {
-		log->fp = NULL;
-		return;
-	}
-
-	log->fp = fopen(wfb_options.log_file, "w");
-	if (log->fp) {
-		p_debug("New LOG File: %s\n", wfb_options.log_file);
+		ctx->mirror_handler[i].func(iov, iovcnt,
+		    ctx->mirror_handler[i].arg);
 	}
 }
 
@@ -243,8 +184,13 @@ rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen)
 	rxlen -= parsed;
 
 	parsed = radiotap_frame_parse(rxbuf, rxlen, &ctx->radiotap);
-	if (parsed < 0 || ctx->radiotap.bad_fcs)
+	if (parsed < 0)
 		return -1;
+	if (ctx->radiotap.bad_fcs) {
+		/* just notify 'detected something'. */
+		rx_mirror_frame(ctx, NULL, 0);
+		return -1;
+	}
 	rxbuf += parsed;
 	rxlen -= parsed;
 	ctx->freq = ctx->radiotap.freq;
@@ -288,6 +234,9 @@ rx_frame_udp(struct rx_context *ctx, void *rxbuf, size_t rxlen)
 	rxlen -= parsed;
 	ctx->freq = ctx->udp.freq;
 	ctx->dbm = ctx->udp.dbm;
+	if (ctx->udp.flags & UDP_FLAG_CORRUPT) {
+		rx_log_corrupt(ctx);
+	}
 
 	parsed = wfb_frame_parse(rxbuf, rxlen, &ctx->wfb);
 	if (parsed < 0)

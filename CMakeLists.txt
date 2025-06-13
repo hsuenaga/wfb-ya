@@ -52,6 +52,7 @@ set(wfb_listener_srcs
 	src/rx_core.c
 	src/rx_session.c
 	src/rx_data.c
+	src/rx_log.c
 	src/frame_udp.c
 	src/frame_pcap.c
 	src/frame_radiotap.c
@@ -167,7 +168,6 @@ endif ()
 
 set(wfb_log_analysis_incs
 	${wfb_listener_incs}
-	src
 )
 
 add_executable(wfb_log_analysis

@@ -5,12 +5,12 @@
 #include <sys/queue.h>
 #include <sys/time.h>
 
-#include "compat.h"
-#include "util_msg.h"
+#include "../compat.h"
+#include "../util_msg.h"
+#include "../wfb_gst.h"
 
 #include "log_raw.h"
 #include "log_h265.h"
-#include "wfb_gst.h"
 
 static struct wfb_gst_context player_ctx = {
 	.initialized = 0
