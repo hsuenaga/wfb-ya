@@ -20,7 +20,18 @@ This project will be compiled using cmake.
 ```
 % git submodule init
 % git submodule update
-% cmake -B build
+% cmake -B build 
+% cd build
+% make
+```
+
+if you have gstreamer-1.0, you can enable GStreamer options
+by cmake option.
+
+```
+% git submodule init
+% git submodule update
+% cmake -B build -DENABLE_GSTREAMER=ON
 % cd build
 % make
 ```
@@ -33,3 +44,122 @@ You need following external packages.
 - libsodium
 - gstreamer-1.0
 
+Usage:
+------
+## The listener program
+```
+wfb_listener -- WFB-NG based Rx and Multicast Tx
+
+Synopsis:
+        wfb_listener [-w <dev>] [-e <dev>] [-E <dev>]
+        [-a <addr>] [-p <port>] [-k <file>]
+        [-l] [-m] [-n] [-d] [-h]
+Options:
+        -w <dev> ... specify Wireless Rx device. default: none
+        -e <dev> ... specify Ethernet Rx device. default: none
+        -E <dev> ... specify Ethernet Tx device. default: none
+        -a <addr> ... specify Multicast address . default: ff02::5742
+        -p <port> ... specify Multicast port . default: 5742
+        -k <file> ... specify cipher key. default: ./gs.key
+        -l ... enable local play. default: disable
+        -L ... log file name. default: (none)
+        -m ... use RFMonitor mode instead of Promiscous mode.
+        -n ... don't apply FEC decode.
+        -d ... enable debug output.
+        -h ... print help(this).
+
+If tx device is not specified, the progaram decode the stream.
+```
+
+### redistribute Wireless frames(from OpenIPC FPV) to multicast network.
+```
+% wfb_listener -w wlan0 -E eth0
+```
+
+### receive multicast packets and play with GStreamer
+```
+% wfb_listener -e eth0 -l
+```
+
+### receive multicast packets and write to a file.
+```
+```
+### receive multicast packets and write to a file.
+```
+% wfb_listener -e eth0 -L output.log
+```
+
+## The log analyzer
+```
+wfb_log_analysis --WFB-YA log analyzer
+
+Synopsis:
+        wfb_log_analysis [-f <name>] [-o <name>] [-t <type>] [-l] [-i] [-d]
+Options:
+        -f <name> ... specify input file name. default: STDIN
+        -o <name> ... specify output file name. default: STDOUT
+        -t <type> ... specify output file format. default: csv
+        -l ... enable local play(GStreamer)
+        -i ... interactive mode
+        -d ... enable debug log.
+Output Foramt <type>:
+        csv .. comma separated values(default).
+        json .. javascript object(per sequence).
+        json_block .. javascript object(per block).
+        summary .. summary values.
+        mp4 .. write MP4 video.
+        none .. no output. error check only.
+```
+
+### import log and output to csv
+```
+% wfb_log_analysis -f output.log -o output.csv -t csv
+```
+
+### import log and output to json (grouped by packet sequence)
+```
+% wfb_log_analysis -f output.log -o output.csv -t json
+```
+
+### import log and output to json (grouped by block sequence)
+```
+% wfb_log_analysis -f output.log -o output.csv -t json_block
+```
+
+### import log and replay with GStreamer
+```
+% wfb_log_analysis -f output.log -l
+```
+
+### import log and write mp4 file with GStreamer
+```
+% wfb_log_analysis -f output.log -o output.mp4 -t mp4
+```
+
+### use simple interactive shell
+```
+% wfb_log_analysis -i
+> load output.log
+Loading output.log...
+12170 packets loaded.
+> stat
+Channel ID: 0
+FEC_TYPE: VDM_RS (Reed-Solomon over Vandermonde Matrix)
+FEC_K: 8
+FEC_N: 12
+Number of Ethernet Frames: 12170
+Number of Ethernet Frames(with dbm): 12170
+Maximum dbm: -36
+minimum dbm: -47
+Number of H.265 Frames: 8185
+Maximum frame size: 1215
+minimum frame size: 18
+Total H.265 bytes: 8692096
+Frame recovered using FEC: 72
+Number of corrupted blocks: 2
+> help
+Comands:
+ls write show play stat load exit quit help ?
+>
+...
+```
