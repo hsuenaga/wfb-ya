@@ -20,6 +20,8 @@ struct log_data_kv {
 
 	bool has_ethernet_frame;
 	bool has_corrupted_frame;
+	bool has_lost_frame;
+	bool has_fec_frame;
 	int n_ethernet_frame;
 	int n_h265_frame;
 

@@ -25,6 +25,7 @@ summary_output(FILE *fp, struct log_store *ls)
 {
 	struct log_data_kv *kv;
 	int n_fec = 0;
+	int n_lost = 0;
 
 	if (fp == NULL)
 		fp = stdout;
@@ -44,12 +45,20 @@ summary_output(FILE *fp, struct log_store *ls)
 	fprintf(fp, "Total H.265 bytes: %" PRIu64 "\n", ls->total_bytes);
 
 	TAILQ_FOREACH(kv, &ls->kvh, chain) {
-		if (kv->has_ethernet_frame)
+		if (!kv->has_fec_frame)
 			continue;
 		p_debug("Sequence %" PRIu64 " recovered by FEC\n", kv->key);
 		n_fec++;
 	}
 	fprintf(fp, "Frame recovered using FEC: %d\n", n_fec);
+
+	TAILQ_FOREACH(kv, &ls->block_kvh, chain) {
+		if (!kv->has_lost_frame)
+			continue;
+		p_debug("Block %" PRIu64 " has lost frames\n", kv->key);
+		n_lost++;
+	}
+	fprintf(fp, "Number of corrupted blocks: %d\n", n_lost);
 
 	return 0;
 }

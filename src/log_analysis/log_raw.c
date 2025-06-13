@@ -140,6 +140,19 @@ mark_h265(struct log_store *ls, struct log_data_v *v)
 {
 	v->kv->n_h265_frame++;
 	v->block_kv->n_h265_frame++;
+
+	if (v->kv->n_ethernet_frame == 0) {
+		/* only decoded frame appered */
+		v->kv->has_fec_frame = true;
+		v->block_kv->has_fec_frame = true;
+	}
+
+	if (v->block_kv->n_h265_frame < ls->fec_k) {
+		v->block_kv->has_lost_frame = true;
+	}
+	else {
+		v->block_kv->has_lost_frame = false;
+	}
 }
 
 static int

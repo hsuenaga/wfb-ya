@@ -82,6 +82,12 @@ fprintfkv(FILE *fp, enum json_keys_enum k, const char *fmt, ...)
 			/* treat as integer */
 			vfprintf(fp, fmt, ap);
 			break;
+		case KEY_IS_FEC:
+		case KEY_IS_PARITY:
+		case KEY_IS_LOST:
+			/* treat as boolean */
+			vfprintf(fp, fmt, ap);
+			break;
 		default:
 			/* treat as string */
 			vfprintfq(fp, fmt, ap);
@@ -303,29 +309,19 @@ json_serialize_kvh(FILE *fp, struct log_store *ls, struct log_data_kv_hd *kvh)
 			    v->is_parity ? "true" : "false");
 			add_sep(fp);
 			add_nl(fp);
-
-			fprintfkv(fp, KEY_IS_FEC, "%s",
-			    kv->has_ethernet_frame ? "false" : "true");
-			add_sep(fp);
-			add_nl(fp);
 		}
 		else {
-			/* XXX: need better handling */
-			if (kv->n_ethernet_frame < ls->fec_n) {
-				fprintfkv(fp, KEY_IS_FEC, "%s",
-				    kv->n_h265_frame == ls->fec_k ? "true" : "false");
-			}
-			else {
-				fprintfkv(fp, KEY_IS_FEC, "false");
-			}
-			add_sep(fp);
-			add_nl(fp);
-
 			fprintfkv(fp, KEY_IS_LOST, "%s",
-			    kv->n_h265_frame != ls->fec_k ? "true" : "false");
+			    kv->has_lost_frame ? "true" : "false");
 			add_sep(fp);
 			add_nl(fp);
 		}
+
+		fprintfkv(fp, KEY_IS_FEC,
+		    kv->has_fec_frame ? "true" : "false");
+		add_sep(fp);
+		add_nl(fp);
+
 
 		fprintfkv(fp, KEY_N_ETHER, "%d", kv->n_ethernet_frame);
 		add_sep(fp);
