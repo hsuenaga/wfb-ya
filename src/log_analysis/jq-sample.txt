@@ -1,0 +1,256 @@
+
+* select blocks with lost frames (summarized view)
+
+jq [.[]|select(.HasLostFrame == true)|{BlockIndex: .Key,EthernetFrames: .EthernetFrames,H265Frames: .H265Frames }]
+
+[
+  {
+    "BlockIndex": 50066,
+    "EthernetFrames": "6",
+    "H265Frames": "2"
+  },
+  {
+    "BlockIndex": 51089,
+    "EthernetFrames": "7",
+    "H265Frames": "7"
+  }
+]
+
+* select blocks with lost frames (detailed view) 
+jq [.[]|select(.HasLostFrame == true)]
+
+[
+  {
+    "Key": 50066,
+    "HasLostFrame": true,
+    "IsFEC": false,
+    "EthernetFrames": "6",
+    "H265Frames": "2",
+    "Event": [
+      {
+        "TimeStamp": 0E-9,
+        "BlockIndex": 50066,
+        "FragmentIndex": 6,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -40,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 0.000842000,
+        "BlockIndex": 50066,
+        "FragmentIndex": 7,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -40,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 0.001707000,
+        "BlockIndex": 50066,
+        "FragmentIndex": 8,
+        "IsParity": true,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -40,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 0.002546000,
+        "BlockIndex": 50066,
+        "FragmentIndex": 9,
+        "IsParity": true,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -40,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 0.003457000,
+        "BlockIndex": 50066,
+        "FragmentIndex": 10,
+        "IsParity": true,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -40,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 0.004253000,
+        "BlockIndex": 50066,
+        "FragmentIndex": 11,
+        "IsParity": true,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -40,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 0.005217000,
+        "BlockIndex": 50066,
+        "FragmentIndex": 6,
+        "Type": "Decode",
+        "dbm": 0,
+        "DataSize": 1215
+      },
+      {
+        "TimeStamp": 0.005240000,
+        "BlockIndex": 50066,
+        "FragmentIndex": 7,
+        "Type": "Decode",
+        "dbm": 0,
+        "DataSize": 1215
+      }
+    ]
+  },
+  {
+    "Key": 51089,
+    "HasLostFrame": true,
+    "IsFEC": false,
+    "EthernetFrames": "7",
+    "H265Frames": "7",
+    "Event": [
+      {
+        "TimeStamp": 16.449880000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 0,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -38,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 16.449934000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 0,
+        "Type": "Decode",
+        "dbm": 0,
+        "DataSize": 1215
+      },
+      {
+        "TimeStamp": 16.450722000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 1,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -38,
+        "DataSize": 1162
+      },
+      {
+        "TimeStamp": 16.450773000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 1,
+        "Type": "Decode",
+        "dbm": 0,
+        "DataSize": 1134
+      },
+      {
+        "TimeStamp": 16.454216000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 2,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -37,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 16.454282000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 2,
+        "Type": "Decode",
+        "dbm": 0,
+        "DataSize": 1215
+      },
+      {
+        "TimeStamp": 16.455007000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 3,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -38,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 16.455064000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 3,
+        "Type": "Decode",
+        "dbm": 0,
+        "DataSize": 1215
+      },
+      {
+        "TimeStamp": 16.455851000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 4,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -38,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 16.455897000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 4,
+        "Type": "Decode",
+        "dbm": 0,
+        "DataSize": 1215
+      },
+      {
+        "TimeStamp": 16.456715000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 5,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -38,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 16.456757000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 5,
+        "Type": "Decode",
+        "dbm": 0,
+        "DataSize": 1215
+      },
+      {
+        "TimeStamp": 16.456792000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 6,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -38,
+        "DataSize": 76
+      },
+      {
+        "TimeStamp": 16.456811000,
+        "BlockIndex": 51089,
+        "FragmentIndex": 6,
+        "Type": "Decode",
+        "dbm": 0,
+        "DataSize": 48
+      }
+    ]
+  }
+]
