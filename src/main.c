@@ -83,6 +83,7 @@ print_help(const char *path)
 	printf("\t-m ... use RFMonitor mode instead of Promiscous mode.\n");
 	printf("\t-n ... don't apply FEC decode.\n");
 	printf("\t-D ... run as daemon.\n");
+	printf("\t-K ... kill daemon.\n");
 	printf("\t-d ... enable debug output.\n");
 	printf("\t-h ... print help(this).\n");
 	printf("\n");
@@ -96,7 +97,7 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:L:P:Dlmndh")) != -1) {
+	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:L:P:DKlmndh")) != -1) {
 		long val;
 
 		switch (ch) {
@@ -136,6 +137,9 @@ parse_options(int *argc0, char **argv0[])
 				break;
 			case 'D':
 				wfb_options.daemon = true;
+				break;
+			case 'K':
+				wfb_options.kill_daemon = true;
 				break;
 			case 'P':
 				wfb_options.pid_file = optarg;
@@ -188,6 +192,12 @@ _main(int argc, char *argv[])
 	int fd;
 
 	parse_options(&argc, &argv);
+
+	if (wfb_options.kill_daemon) {
+		if (kill_daemon(wfb_options.pid_file) < 0)
+			exit(0);
+		exit(1);
+	}
 
 	if (wfb_options.daemon) {
 		if (create_daemon(wfb_options.pid_file) < 0)

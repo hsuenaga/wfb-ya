@@ -38,6 +38,7 @@ struct wfb_opt {
 	bool no_fec;
 	bool debug;
 	bool daemon;
+	bool kill_daemon;
 };
 
 extern struct wfb_opt wfb_options;

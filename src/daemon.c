@@ -60,6 +60,39 @@ write_pid(int fd, pid_t pid)
 	return 0;
 }
 
+static pid_t
+read_pid_file(const char *pid_file)
+{
+	pid_t pid;
+	int fd;
+
+	fd = open(pid_file, O_RDONLY|O_CLOEXEC);
+	if (fd < 0) {
+		p_err("Cannot open pid file %s: %s\n",
+		    pid_file, strerror(errno));
+		close(fd);
+		return -1;
+	}
+
+	if (flock(fd, LOCK_SH) < 0) {
+		p_err("Cannot lock pid_file: %s: %s\n",
+		    pid_file, strerror(errno));
+		close(fd);
+		return -1;
+	}
+
+	pid = read_pid(fd);
+	if (pid <= 0) {
+		p_err("Invalid PID %ju.\n", (intmax_t)pid);
+		close(fd);
+		return -1;
+	}
+
+	close(fd);
+
+	return pid;
+}
+
 static int
 create_pid_file(const char *pid_file)
 {
@@ -90,6 +123,13 @@ create_pid_file(const char *pid_file)
 
 	if (ftruncate(fd, 0) < 0) {
 		p_err("Cannot truncate pid file %s: %s\n",
+		    pid_file, strerror(errno));
+		close(fd);
+		return -1;
+	}
+
+	if (lseek(fd, 0, SEEK_SET) < 0) {
+		p_err("Cannot seek pid_file: %s: %s\n",
 		    pid_file, strerror(errno));
 		close(fd);
 		return -1;
@@ -150,6 +190,33 @@ create_daemon(const char *pid_file)
 
 	for (fd = sysconf(_SC_OPEN_MAX); fd >= 0; fd--) {
 		(void)close(fd);
+	}
+
+	return 0;
+}
+
+int
+kill_daemon(const char *pid_file)
+{
+	pid_t pid;
+	int timeout = 30;
+
+	pid = read_pid_file(pid_file);
+	if (pid < 0)
+		return -1;
+
+	if (kill(pid, SIGTERM) < 0) {
+		p_err("Cannot send signal to pid %ju: %s\n",
+		    (uintmax_t)pid, strerror(errno));
+		return -1;
+	}
+
+	while (kill(pid, 0) == 0) {
+		sleep(1);
+		if (--timeout <= 0) {
+			p_err("Cannot terminate process %ju\n", (uintmax_t)pid);
+			return -1;
+		}
 	}
 
 	return 0;
