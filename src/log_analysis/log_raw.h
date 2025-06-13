@@ -5,11 +5,25 @@
 #include <sys/time.h>
 #include <sys/queue.h>
 
+enum kv_type_t {
+	KV_TYPE_INVAL,
+	KV_TYPE_SEQ,
+	KV_TYPE_BLK,
+};
+
+TAILQ_HEAD(log_data_kv_hd, log_data_kv);
+TAILQ_HEAD(log_data_v_hd, log_data_v);
+
 struct log_data_kv {
 	uint64_t key;
+	enum kv_type_t type;
+
 	bool has_ethernet_frame;
 	bool has_corrupted_frame;
-	TAILQ_HEAD(log_data_v_hd, log_data_v) vh;
+	int n_ethernet_frame;
+	int n_h265_frame;
+
+	struct log_data_v_hd vh;
 
 	TAILQ_ENTRY(log_data_kv) chain;
 };
@@ -24,10 +38,14 @@ struct log_data_v {
 	uint16_t freq;
 	int16_t dbm;
 	bool corrupt;
+	bool is_parity;
 	void *buf;
 
 	struct log_data_kv *kv;
 	TAILQ_ENTRY(log_data_v) chain;
+
+	struct log_data_kv *block_kv;
+	TAILQ_ENTRY(log_data_v) block_chain;
 };
 
 struct log_store {
@@ -50,7 +68,8 @@ struct log_store {
 	uint32_t min_frame_size;
 	uint64_t total_bytes;
 
-	TAILQ_HEAD(log_data_kv_hd, log_data_kv) kvh;
+	struct log_data_kv_hd block_kvh;
+	struct log_data_kv_hd kvh;
 };
 
 struct log_store *load_log(FILE *fp);

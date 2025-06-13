@@ -50,7 +50,7 @@ static int
 csv_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 {
 	static const char *s_hdr[] = {
-		"Sequence",
+		"Key",
 		"Time Stamp",
 		"Block Index",
 		"Fragment Index",
@@ -58,7 +58,8 @@ csv_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 		"Frequency",
 		"dbm",
 		"Data Size",
-		"Corrupted"
+		"Corrupted",
+		"IsParity"
 	};
 	char s_addr[INET6_ADDRSTRLEN] = {'\0'};
 	int i;
@@ -88,7 +89,8 @@ csv_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 	add_sep(fp);
 	fprintfq(fp, "%" PRIu64 "", v->fragment_idx);
 	add_sep(fp);
-	fprintfq(fp, "%s", s_addr);
+	if (s_addr[0] != '\0')
+	       	fprintfq(fp, "%s", s_addr);
 	add_sep(fp);
 	if (v->freq > 0)
 		fprintfq(fp, "%u", v->freq);
@@ -99,6 +101,8 @@ csv_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 	fprintfq(fp, "%u", v->size);
 	add_sep(fp);
 	fprintfq(fp, "%d", v->corrupt ? 1 : 0);
+	add_sep(fp);
+	fprintfq(fp, "%d", v->is_parity ? 1 : 0);
 	add_nl(fp);
 
 

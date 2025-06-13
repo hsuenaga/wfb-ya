@@ -18,7 +18,7 @@
 #include "log_json.h"
 
 const char *json_keys[] = {
-	"Sequence",
+	"Key",
 	"TimeStamp",
 	"BlockIndex",
 	"FragmentIndex",
@@ -28,6 +28,10 @@ const char *json_keys[] = {
 	"DataSize",
 	"IsFEC",
 	"Type",
+	"EthernetFrames",
+	"H265Frames",
+	"IsParity",
+	"HasLostFrame",
 };
 
 static void __fprintf
@@ -75,10 +79,11 @@ fprintfkv(FILE *fp, enum json_keys_enum k, const char *fmt, ...)
 		case KEY_FQ:
 		case KEY_DB:
 		case KEY_DS:
+			/* treat as integer */
 			vfprintf(fp, fmt, ap);
 			break;
-		case KEY_SN:
 		default:
+			/* treat as string */
 			vfprintfq(fp, fmt, ap);
 			break;
 	}
@@ -162,6 +167,19 @@ json_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 	/* timestamp */
         fprintfkv(fp, KEY_TS, "%ld.%09ld", v->ts.tv_sec, v->ts.tv_nsec);
 
+	/* block index and fragment index */
+	if (kv->type == KV_TYPE_BLK) {
+		add_sep(fp);
+		fprintfkv(fp, KEY_BI, "%" PRIu64 "", v->block_idx);
+		add_sep(fp);
+		fprintfkv(fp, KEY_FI, "%" PRIu64 "", v->fragment_idx);
+		if (v->type == FRAME_TYPE_INET6) {
+			add_sep(fp);
+			fprintfkv(fp, KEY_IS_PARITY, "%s",
+			    v->is_parity ? "true" : "false");
+		}
+	}
+
 	/* event type */
 	switch (v->type) {
 	case FRAME_TYPE_CORRUPT:
@@ -209,8 +227,42 @@ json_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
 	return 0;
 }
 
-int
-json_serialize(FILE *fp, struct log_store *ls)
+static int
+json_serialize_event(FILE *fp, struct log_data_kv *kv)
+{
+	struct log_data_v *v;
+	bool first_v = true;
+
+	array_start(fp, "Event"); 
+
+	if (kv->type == KV_TYPE_BLK) {
+		TAILQ_FOREACH(v, &kv->vh, block_chain) {
+			if (!first_v) {
+				add_sep(fp);
+				add_nl(fp);
+			}
+			first_v = false;
+			json_serialize_v(fp, kv, v);
+		}
+	}
+	else {
+		TAILQ_FOREACH(v, &kv->vh, chain) {
+			if (!first_v) {
+				add_sep(fp);
+				add_nl(fp);
+			}
+			first_v = false;
+			json_serialize_v(fp, kv, v);
+		}
+	}
+
+	array_end(fp);
+
+	return 0;
+}
+
+static int
+json_serialize_kvh(FILE *fp, struct log_store *ls, struct log_data_kv_hd *kvh)
 {
 	struct log_data_kv *kv;
 	struct log_data_v *v;
@@ -223,9 +275,7 @@ json_serialize(FILE *fp, struct log_store *ls)
 	array_start(fp, NULL);
 	add_nl(fp);
 
-	TAILQ_FOREACH(kv, &ls->kvh, chain) {
-		bool first_v = true;
-
+	TAILQ_FOREACH(kv, kvh, chain) {
 		if (!first_kv) {
 			add_sep(fp);
 			add_nl(fp);
@@ -240,30 +290,54 @@ json_serialize(FILE *fp, struct log_store *ls)
 		add_sep(fp);
 		add_nl(fp);
 
-		fprintfkv(fp, KEY_BI, "%" PRIu64 "", v->block_idx);
-		add_sep(fp);
-		add_nl(fp);
+		if (kv->type == KV_TYPE_SEQ) {
+			fprintfkv(fp, KEY_BI, "%" PRIu64 "", v->block_idx);
+			add_sep(fp);
+			add_nl(fp);
 
-		fprintfkv(fp, KEY_FI, "%" PRIu64 "", v->fragment_idx);
-		add_sep(fp);
-		add_nl(fp);
+			fprintfkv(fp, KEY_FI, "%" PRIu64 "", v->fragment_idx);
+			add_sep(fp);
+			add_nl(fp);
 
-		fprintfkv(fp, KEY_IS_FEC, "%s",
-		    kv->has_ethernet_frame ? "false" : "true");
-		add_sep(fp);
-		add_nl(fp);
+			fprintfkv(fp, KEY_IS_PARITY, "%s",
+			    v->is_parity ? "true" : "false");
+			add_sep(fp);
+			add_nl(fp);
 
-		array_start(fp, "Event"); 
-		TAILQ_FOREACH(v, &kv->vh, chain) {
-			if (!first_v) {
-				add_sep(fp);
-				add_nl(fp);
-			}
-			first_v = false;
-			json_serialize_v(fp, kv, v);
+			fprintfkv(fp, KEY_IS_FEC, "%s",
+			    kv->has_ethernet_frame ? "false" : "true");
+			add_sep(fp);
+			add_nl(fp);
 		}
-		array_end(fp);
+		else {
+			/* XXX: need better handling */
+			if (kv->n_ethernet_frame < ls->fec_n) {
+				fprintfkv(fp, KEY_IS_FEC, "%s",
+				    kv->n_h265_frame == ls->fec_k ? "true" : "false");
+			}
+			else {
+				fprintfkv(fp, KEY_IS_FEC, "false");
+			}
+			add_sep(fp);
+			add_nl(fp);
+
+			fprintfkv(fp, KEY_IS_LOST, "%s",
+			    kv->n_h265_frame != ls->fec_k ? "true" : "false");
+			add_sep(fp);
+			add_nl(fp);
+		}
+
+		fprintfkv(fp, KEY_N_ETHER, "%d", kv->n_ethernet_frame);
+		add_sep(fp);
 		add_nl(fp);
+
+		fprintfkv(fp, KEY_N_H265, "%d", kv->n_h265_frame);
+		add_sep(fp);
+		add_nl(fp);
+
+		json_serialize_event(fp, kv);
+		add_nl(fp);
+
 		obj_end(fp);
 	}
 	add_nl(fp);
@@ -272,4 +346,16 @@ json_serialize(FILE *fp, struct log_store *ls)
 	add_nl(fp);
 
 	return 0;
+}
+
+int
+json_serialize(FILE *fp, struct log_store *ls)
+{
+	return json_serialize_kvh(fp, ls, &ls->kvh);
+}
+
+int
+json_serialize_block(FILE *fp, struct log_store *ls)
+{
+	return json_serialize_kvh(fp, ls, &ls->block_kvh);
 }

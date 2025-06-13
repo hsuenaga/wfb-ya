@@ -14,8 +14,13 @@ enum json_keys_enum {
 	KEY_DS,
 	KEY_IS_FEC,
 	KEY_TYPE,
+	KEY_N_ETHER,
+	KEY_N_H265,
+	KEY_IS_PARITY,
+	KEY_IS_LOST,
 };
 extern const char *json_keys[];
 
 extern int json_serialize(FILE *fp, struct log_store *ls);
+extern int json_serialize_block(FILE *fp, struct log_store *ls);
 #endif /* __LOG_JSON_H__ */

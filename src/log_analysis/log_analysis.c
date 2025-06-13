@@ -59,7 +59,8 @@ print_help(const char *path)
 	printf("\t-d ... enable debug log.\n");
 	printf("Output Foramt <type>:\n");
 	printf("\tcsv .. comma separated values(default).\n");
-	printf("\tjson .. javascript object.\n");
+	printf("\tjson .. javascript object(per sequence).\n");
+	printf("\tjson_block .. javascript object(per block).\n");
 	printf("\tsummary .. summary values.\n");
 #ifdef ENABLE_GSTREAMER
 	printf("\tmp4 .. write MP4 video.\n");
@@ -88,6 +89,9 @@ parse_options(int *argc0, char **argv0[])
 				}
 				else if (strcasecmp(optarg, "json") == 0) {
 					options.out_type = OUTPUT_JSON;
+				}
+				else if (strcasecmp(optarg, "json_block") == 0){
+					options.out_type = OUTPUT_JSON_BLOCK;
 				}
 				else if (strcasecmp(optarg, "summary") == 0) {
 					options.out_type = OUTPUT_SUMMARY;
@@ -187,6 +191,9 @@ _main(int argc, char *argv[])
 			break;
 		case OUTPUT_JSON:
 			json_serialize(fp_out, ls);
+			break;
+		case OUTPUT_JSON_BLOCK:
+			json_serialize_block(fp_out, ls);
 			break;
 		case OUTPUT_SUMMARY:
 			summary_output(fp_out, ls);

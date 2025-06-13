@@ -68,6 +68,20 @@ shell_show_json(struct shell_context *ctx, struct shell_token *token)
 }
 
 static int
+shell_show_json_block(struct shell_context *ctx, struct shell_token *token)
+{
+	if (!ctx->ls) {
+		p_info("No file loaded.\n");
+		return -1;
+	}
+
+	json_serialize_block(ctx->fp_out, ctx->ls);
+
+	return 0;
+}
+
+
+static int
 shell_write_csv(struct shell_context *ctx, struct shell_token *token)
 {
 	FILE *fp;
@@ -120,6 +134,34 @@ shell_write_json(struct shell_context *ctx, struct shell_token *token)
 
 	return 0;
 }
+
+static int
+shell_write_json_block(struct shell_context *ctx, struct shell_token *token)
+{
+	FILE *fp;
+
+	token_next(token);
+	if (token->cur == NULL) {
+		p_info("Missing argument\n");
+		p_info("%s <file_name>\n", expand_token(token));
+		return -1;
+	}
+	if (!ctx->ls) {
+		p_info("No file loaded.\n");
+		return -1;
+	}
+
+	fp = fopen(token->cur, "w");
+	if (fp == NULL) {
+		p_info("Cannot open file: %s\n", token->cur);
+		return -1;
+	}
+	json_serialize_block(fp, ctx->ls);
+	fclose(fp);
+
+	return 0;
+}
+
 
 #ifdef ENABLE_GSTREAMER
 static int
@@ -238,6 +280,7 @@ shell_help(struct shell_context *ctx, struct shell_token *token)
 static struct shell_cmd_def write_cmds[] = {
 	{ "csv", NULL, shell_write_csv },
 	{ "json", NULL, shell_write_json },
+	{ "json_block", NULL, shell_write_json_block },
 #ifdef ENABLE_GSTREAMER
 	{ "mp4", NULL, shell_write_mp4 },
 #endif
@@ -251,6 +294,7 @@ static struct shell_cmd_tree write_tree = {
 static struct shell_cmd_def show_cmds[] = {
 	{ "csv", NULL, shell_show_csv },
 	{ "json", NULL, shell_show_json },
+	{ "json_block", NULL, shell_show_json_block },
 	{NULL, NULL, NULL}
 };
 

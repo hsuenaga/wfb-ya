@@ -129,7 +129,7 @@ rx_log_decode(struct rx_context *ctx,
 	hd.size = htole32(size);
 	hd.fragment_idx = fragment_idx;
 	hd.freq = htole16(0);
-	hd.dbm = htole16(0);
+	hd.dbm = htole16(DBM_INVAL);
 	hd.type = FRAME_TYPE_DECODE;
 	memset(hd.rx_src, 0, sizeof(hd.rx_src));
 

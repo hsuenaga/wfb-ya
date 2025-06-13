@@ -31,13 +31,32 @@ dump_header(struct rx_log_frame_header *hd)
 	p_debug("dbm: %d\n", le16toh(hd->dbm));
 }
 
-static struct log_data_v *
-log_v_alloc(struct log_store *ds, uint64_t key)
+static struct log_store *
+log_store_alloc(void)
+{
+	struct log_store *ls;
+
+	ls = (struct log_store *)malloc(sizeof(*ls));
+	if (ls == NULL)
+		return NULL;
+
+	memset(ls, 0, sizeof(*ls));
+	ls->max_dbm = DBM_MIN;
+	ls->min_dbm = DBM_MAX;
+	ls->max_frame_size = FRAME_SIZE_MIN;
+	ls->min_frame_size = FRAME_SIZE_MAX;
+	TAILQ_INIT(&ls->kvh);
+	TAILQ_INIT(&ls->block_kvh);
+
+	return ls;
+}
+
+static struct log_data_kv *
+log_kv_alloc(struct log_data_kv_hd *kvh, uint64_t key, enum kv_type_t type)
 {
 	struct log_data_kv *kv = NULL, *kvp = NULL;
-	struct log_data_v *v;
 
-	TAILQ_FOREACH_REVERSE(kv, &ds->kvh, log_data_kv_hd, chain) {
+	TAILQ_FOREACH_REVERSE(kv, kvh, log_data_kv_hd, chain) {
 		if (kv->key > key) {
 			kvp = kv;
 			continue;
@@ -57,6 +76,7 @@ log_v_alloc(struct log_store *ds, uint64_t key)
 			return NULL;
 		memset(kv, 0, sizeof(*kv));
 		kv->key = key;
+		kv->type = type;
 		kv->has_ethernet_frame = false;
 		TAILQ_INIT(&kv->vh);
 
@@ -64,17 +84,62 @@ log_v_alloc(struct log_store *ds, uint64_t key)
 			TAILQ_INSERT_BEFORE(kvp, kv, chain);
 		}
 		else {
-			TAILQ_INSERT_TAIL(&ds->kvh, kv, chain);
+			TAILQ_INSERT_TAIL(kvh, kv, chain);
 		}
 	}
+
+	return kv;
+}
+
+
+static struct log_data_v *
+log_v_alloc(struct log_store *ls, struct rx_log_frame_header *hd)
+{
+	struct log_data_kv *kv, *block_kv;
+	struct log_data_v *v;
+
+	kv = log_kv_alloc(&ls->kvh, hd->seq, KV_TYPE_SEQ);
+	if (kv == NULL)
+		return NULL;
+	block_kv = log_kv_alloc(&ls->block_kvh, hd->block_idx, KV_TYPE_BLK);
+	if (block_kv == NULL)
+		return NULL;
 
 	v = (struct log_data_v *)malloc(sizeof(*v));
 	if (v == NULL)
 		return NULL;
 	memset(v, 0, sizeof(*v));
 	v->kv = kv;
+	v->block_kv = block_kv;
 	TAILQ_INSERT_TAIL(&kv->vh, v, chain);
+	TAILQ_INSERT_TAIL(&block_kv->vh, v, block_chain);
 	return v;
+}
+
+static void
+mark_corrupt(struct log_store *ls, struct log_data_v *v)
+{
+	v->kv->has_ethernet_frame = true;
+	v->kv->has_corrupted_frame = true;
+	v->block_kv->has_ethernet_frame = true;
+	v->block_kv->has_corrupted_frame = true;
+}
+
+static void
+mark_inet6(struct log_store *ls, struct log_data_v *v)
+{
+	v->kv->has_ethernet_frame = true;
+	v->block_kv->has_ethernet_frame = true;
+
+	v->kv->n_ethernet_frame++;
+	v->block_kv->n_ethernet_frame++;
+}
+
+static void
+mark_h265(struct log_store *ls, struct log_data_v *v)
+{
+	v->kv->n_h265_frame++;
+	v->block_kv->n_h265_frame++;
 }
 
 static int
@@ -177,7 +242,7 @@ process_frame_header(FILE *fp, struct log_store *ls)
 	}
 	timespecsub(&ts, &ls->epoch, &ts);
 
-	v = log_v_alloc(ls, hd.seq);
+	v = log_v_alloc(ls, &hd);
 	if (v == NULL)
 		return -1;
 
@@ -189,22 +254,27 @@ process_frame_header(FILE *fp, struct log_store *ls)
 		v->ts = ts;
 	v->block_idx = hd.block_idx;
 	v->fragment_idx = hd.fragment_idx;
+	if (v->fragment_idx >= ls->fec_k) {
+		v->is_parity = true;
+	}
+	else {
+		v->is_parity = false;
+	}
 	v->freq = hd.freq;
 	v->dbm = hd.dbm;
 	v->type = hd.type;
 
 	switch (hd.type) {
 	case FRAME_TYPE_CORRUPT:
-		v->kv->has_ethernet_frame = true;
-		v->kv->has_corrupted_frame = true;
 		v->rx_src.sin6_family = AF_INET6;
 		v->rx_src.sin6_port = 0;
 		v->corrupt = true;
 		memcpy(&v->rx_src.sin6_addr, hd.rx_src,
 		    sizeof(v->rx_src.sin6_addr));
+
+		mark_corrupt(ls, v);
 		break;
 	case FRAME_TYPE_INET6:
-		v->kv->has_ethernet_frame = true;
 		v->rx_src.sin6_family = AF_INET6;
 		v->rx_src.sin6_port = 0;
 		memcpy(&v->rx_src.sin6_addr, hd.rx_src,
@@ -218,6 +288,8 @@ process_frame_header(FILE *fp, struct log_store *ls)
 			if (ls->min_dbm > hd.dbm)
 				ls->min_dbm = hd.dbm;
 		}
+
+		mark_inet6(ls, v);
 		break;
 	case FRAME_TYPE_DECODE:
 		if (process_payload(fp, v, hd.size) < 0)
@@ -229,6 +301,8 @@ process_frame_header(FILE *fp, struct log_store *ls)
 		if (ls->min_frame_size > hd.size)
 			ls->min_frame_size = hd.size;
 		ls->total_bytes += hd.size;
+
+		mark_h265(ls, v);
 		break;
 	default:
 		p_err("Unknown frame type %d.\n", hd.type);
@@ -247,16 +321,10 @@ load_log(FILE *fp)
 	if (fp == NULL)
 		fp = stdin;
 
-	ls = (struct log_store *)malloc(sizeof(*ls));
+	ls = log_store_alloc();
 	if (ls == NULL)
 		return NULL;
 
-	memset(ls, 0, sizeof(*ls));
-	ls->max_dbm = DBM_MIN;
-	ls->min_dbm = DBM_MAX;
-	ls->max_frame_size = FRAME_SIZE_MIN;
-	ls->min_frame_size = FRAME_SIZE_MAX;
-	TAILQ_INIT(&ls->kvh);
 
 	if (process_file_header(fp, ls) < 0) {
 		free(ls);
