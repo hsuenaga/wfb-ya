@@ -17,6 +17,7 @@ static void
 fixup_filename(struct rx_log_handler *log)
 {
 	struct stat st;
+	int rc;
 
 	assert(log);
 
@@ -24,12 +25,15 @@ fixup_filename(struct rx_log_handler *log)
 		strlcpy(log->file_name, wfb_options.log_file,
 		    sizeof(log->file_name));
 	}
+	p_debug("try file name: %s\n", log->file_name);
 
-	while (stat(log->file_name, &st) != ENOENT) {
+	while ( (rc = stat(log->file_name, &st)) == 0) {
+		p_debug("stat() => %d\n", rc);
 		log->seq++;
 		snprintf(log->file_name, sizeof(log->file_name),
 		  "%s.%d", wfb_options.log_file, log->seq);
 	}
+	p_debug("use file name: %s\n", log->file_name);
 }
 
 void
@@ -165,7 +169,7 @@ rx_log_create(struct rx_context *ctx)
 	hd.fec_type = ctx->fec_type;
 	hd.fec_k = ctx->fec_k;
 	hd.fec_n = ctx->fec_n;
-	hd.channel_id = htole32(ctx->channel_id);
+	hd.channel_id = htole32(ctx->ieee80211.channel_id);
 	hd.signature = htole32(RX_LOG_SIGNATURE);
 	if (fwrite(&hd, sizeof(hd), 1, log->fp) == 0) {
 		p_err("write failed: %s\n", strerror(errno));

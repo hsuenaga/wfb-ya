@@ -2,9 +2,23 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#include "../frame_wfb.h"
 #include "../util_msg.h"
 
 #include "log_summary.h"
+
+static const char *
+s_fectype(uint8_t type)
+{
+	switch (type) {
+	case WFB_FEC_VDM_RS:
+		return "VDM_RS (Reed-Solomon over Vandermonde Matrix)";
+	default:
+		break;
+	}
+
+	return "Unknown";
+}
 
 int
 summary_output(FILE *fp, struct log_store *ls)
@@ -15,6 +29,10 @@ summary_output(FILE *fp, struct log_store *ls)
 	if (fp == NULL)
 		fp = stdout;
 
+	fprintf(fp, "Channel ID: %u\n", ls->channel_id);
+	fprintf(fp, "FEC_TYPE: %s\n", s_fectype(ls->fec_type));
+	fprintf(fp, "FEC_K: %u\n", ls->fec_k);
+	fprintf(fp, "FEC_N: %u\n", ls->fec_n);
 	fprintf(fp, "Number of Ethernet Frames: %u\n", ls->n_pkts);
 	fprintf(fp, "Number of Ethernet Frames(with dbm): %u\n",
 	    ls->n_pkts_with_dbm);
