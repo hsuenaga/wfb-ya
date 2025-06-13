@@ -66,7 +66,7 @@ create_pid_file(const char *pid_file)
 	pid_t pid;
 	int fd;
 
-	fd = open(pid_file, O_RDWR|O_CREAT|O_CLOEXEC);
+	fd = open(pid_file, O_RDWR|O_CREAT|O_CLOEXEC, 0644);
 	if (fd < 0) {
 		p_err("Cannot open pid file %s: %s\n",
 		    pid_file, strerror(errno));
