@@ -167,7 +167,14 @@ shell_stat(struct shell_context *ctx, struct shell_token *token)
 static int
 shell_ls(struct shell_context *ctx, struct shell_token *token)
 {
-	system("ls");
+	int rc;
+
+	rc = system("ls");
+	if (rc < 0) {
+		p_err("system() failed: %s\n", strerror(errno));
+	}
+
+	// ignore result code.
 	return 0;
 }
 
@@ -395,7 +402,13 @@ shell_read(FILE *fp_in, FILE *fp_out)
 		*bufp = '\0';
 	}
 	if (token.system && token.buf[0] != '\0') {
-		system(token.buf);
+		int rc;
+
+		rc = system(token.buf);
+		if (rc < 0) {
+			p_err("system() failed: %s\n", strerror(errno));
+		}
+		// ignore result code
 	}
 	else {
 		shell_lex(&token);
