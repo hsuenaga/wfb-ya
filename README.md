@@ -83,9 +83,6 @@ If tx device is not specified, the progaram decode the stream.
 
 ### receive multicast packets and write to a file.
 ```
-```
-### receive multicast packets and write to a file.
-```
 % wfb_listener -e eth0 -L output.log
 ```
 
@@ -121,10 +118,14 @@ Output Foramt <type>:
 % wfb_log_analysis -f output.log -o output.csv -t json
 ```
 
+Please use jq or something to get prety print.
+
 ### import log and output to json (grouped by block sequence)
 ```
 % wfb_log_analysis -f output.log -o output.csv -t json_block
 ```
+
+Please use jq or something to get prety print.
 
 ### import log and replay with GStreamer
 ```
@@ -162,4 +163,80 @@ Comands:
 ls write show play stat load exit quit help ?
 >
 ...
+```
+
+JSON Examples:
+--------------
+## Grouped by sequence
+```
+[
+  {
+    "Key": 600798,
+    "BlockIndex": 50066,
+    "FragmentIndex": 6,
+    "IsParity": false,
+    "IsFEC": false,
+    "EthernetFrames": "1",
+    "H265Frames": "1",
+    "Event": [
+      {
+        "TimeStamp": 0E-9,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -40,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 0.005217000,
+        "Type": "Decode",
+        "dbm": 0,
+        "DataSize": 1215
+      }
+    ]
+  },
+  {
+    "Key": 600799,
+    "BlockIndex": 50066,
+    "FragmentIndex": 7,
+    "IsParity": false,
+    "IsFEC": false,
+    "EthernetFrames": "1",
+    "H265Frames": "1",
+... 
+```
+
+## Grouped by block index
+```
+[
+  {
+    "Key": 50066,
+    "HasLostFrame": true,
+    "IsFEC": false,
+    "EthernetFrames": "6",
+    "H265Frames": "2",
+    "Event": [
+      {
+        "TimeStamp": 0E-9,
+        "BlockIndex": 50066,
+        "FragmentIndex": 6,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -40,
+        "DataSize": 1243
+      },
+      {
+        "TimeStamp": 0.000842000,
+        "BlockIndex": 50066,
+        "FragmentIndex": 7,
+        "IsParity": false,
+        "Type": "Receive",
+        "SourceNode": "fe80::2ecf:67ff:fe92:d83e",
+        "Frequency": 5180,
+        "dbm": -40,
+        "DataSize": 1243
+      },
+... 
 ```
