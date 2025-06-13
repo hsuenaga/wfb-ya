@@ -32,6 +32,9 @@
 extern char *basename_r(const char *path, char *bname);
 #endif
 
+/* General */
+#define DEF_PID_FILE "/var/run/wfb_listener.pid"
+
 #ifndef NELEMS
 #define NELEMS(x) (sizeof((x))/sizeof((x)[0]))
 #endif

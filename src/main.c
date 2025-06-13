@@ -16,6 +16,7 @@
 #endif
 
 #include "compat.h"
+#include "daemon.h"
 
 #include "wfb_params.h"
 #include "net_core.h"
@@ -41,6 +42,7 @@ struct wfb_opt wfb_options = {
 	.use_monitor = false,
 	.no_fec = false,
 	.log_file = NULL,
+	.pid_file = DEF_PID_FILE,
 	.debug = false
 };
 
@@ -57,7 +59,8 @@ print_help(const char *path)
 	printf("Synopsis:\n");
 	printf("\t%s [-w <dev>] [-e <dev>] [-E <dev>]\n", name);
         printf("\t[-a <addr>] [-p <port>] [-k <file>]\n");
-	printf("\t[-l] [-m] [-n] [-d] [-h]\n");
+	printf("\t[-P <pid_file>]\n");
+	printf("\t[-l] [-m] [-n] [-d] [-D] [-h]\n");
 	printf("Options:\n");
 	printf("\t-w <dev> ... specify Wireless Rx device. default: %s\n",
 	    DEF_WRX ? DEF_WRX : "none");
@@ -71,12 +74,15 @@ print_help(const char *path)
 	    WFB_PORT);
 	printf("\t-k <file> ... specify cipher key. default: %s\n",
 	    DEF_KEY ? DEF_KEY : "none");
+	printf("\t-P <pid_file> ... specify pid file(when -D). default: %s\n",
+	    DEF_PID_FILE ? DEF_PID_FILE : "none");
 #ifdef ENABLE_GSTREAMER
 	printf("\t-l ... enable local play. default: disable\n");
 #endif
-	printf("\t-L ... log file name. default: (none)\n");
+	printf("\t-L ... traffic log file name. default: (none)\n");
 	printf("\t-m ... use RFMonitor mode instead of Promiscous mode.\n");
 	printf("\t-n ... don't apply FEC decode.\n");
+	printf("\t-D ... run as daemon.\n");
 	printf("\t-d ... enable debug output.\n");
 	printf("\t-h ... print help(this).\n");
 	printf("\n");
@@ -90,7 +96,7 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:L:lmndh")) != -1) {
+	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:L:P:Dlmndh")) != -1) {
 		long val;
 
 		switch (ch) {
@@ -127,6 +133,12 @@ parse_options(int *argc0, char **argv0[])
 				fprintf(stderr, "gstreamer is disabled by compile option.\n");
 				exit(0);
 #endif
+				break;
+			case 'D':
+				wfb_options.daemon = true;
+				break;
+			case 'P':
+				wfb_options.pid_file = optarg;
 				break;
 			case 'L':
 				wfb_options.log_file = optarg;
@@ -176,6 +188,11 @@ _main(int argc, char *argv[])
 	int fd;
 
 	parse_options(&argc, &argv);
+
+	if (wfb_options.daemon) {
+		if (create_daemon(wfb_options.pid_file) < 0)
+			exit(0);
+	}
 
 	p_debug("Initalizing netcore.\n");
 	if (netcore_initialize(&net_ctx) < 0) {

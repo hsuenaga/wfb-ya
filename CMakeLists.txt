@@ -63,6 +63,7 @@ set(wfb_listener_srcs
 	src/util_msg.c
 	src/util_rbuf.c
 	src/compat.c
+	src/daemon.c
 	${RADIOTAP_SOURCES}
 	${ZFEC_SOURCES}
 )
