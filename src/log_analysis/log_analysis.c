@@ -162,7 +162,7 @@ _main(int argc, char *argv[])
 			exit(0);
 		}
 	}
-	if (options.file_name_out && options.local_play) {
+	if (options.file_name_out && !options.local_play) {
 		fp_out = fopen(options.file_name_out, "w");
 		if (fp_out == NULL) {
 			p_err("Invalid file name: %s\n", options.file_name_out);
