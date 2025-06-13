@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <fcntl.h>
 
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -65,9 +66,16 @@ create_pid_file(const char *pid_file)
 	pid_t pid;
 	int fd;
 
-	fd = open(pid_file, O_RDWR|O_CREAT|O_SHLOCK|O_CLOEXEC);
+	fd = open(pid_file, O_RDWR|O_CREAT|O_CLOEXEC);
 	if (fd < 0) {
 		p_err("Cannot open pid file %s: %s\n",
+		    pid_file, strerror(errno));
+		close(fd);
+		return -1;
+	}
+
+	if (flock(fd, LOCK_SH) < 0) {
+		p_err("Cannot lock pid_file: %s: %s\n",
 		    pid_file, strerror(errno));
 		close(fd);
 		return -1;
