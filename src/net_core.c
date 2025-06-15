@@ -1,15 +1,40 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
 
 #include <pthread.h>
 
+#include <sys/queue.h>
+
 #include <event2/event.h>
 
 #include "net_core.h"
 #include "util_msg.h"
+
+static void
+netcore_wdt(evutil_socket_t s, short what, void *arg)
+{
+	struct netcore_context *ctx = (struct netcore_context *)arg;
+	struct netcore_reload_hook *hook;
+	bool error = false;
+
+	assert(ctx);
+
+	if (ctx->reload) {
+		LIST_FOREACH(hook, &ctx->reload_hooks, next) {
+			if (hook->func(hook->arg) < 0)
+				error = true;
+		}
+	}
+
+	pthread_mutex_lock(&ctx->lock);
+	ctx->reload = error;
+	pthread_mutex_unlock(&ctx->lock);
+	evtimer_add(ctx->wdt, &ctx->wdt_to);
+}
 
 int
 netcore_initialize(struct netcore_context *ctx)
@@ -28,6 +53,16 @@ netcore_initialize(struct netcore_context *ctx)
 
 	ctx->base = event_base_new();
 	pthread_mutex_init(&ctx->lock, NULL);
+	ctx->reload = false;
+	LIST_INIT(&ctx->reload_hooks);
+	ctx->wdt = evtimer_new(ctx->base, netcore_wdt, ctx);
+	if (ctx->wdt == NULL) {
+		p_err("Failed to allocate wdt event.\n");
+		return -1;
+	}
+	ctx->wdt_to.tv_sec = 1;
+	ctx->wdt_to.tv_usec = 0;
+	evtimer_add(ctx->wdt, &ctx->wdt_to);
 
 	event_config_free(cfg);
 
@@ -72,6 +107,38 @@ netcore_rx_event_del(struct netcore_context *ctx, struct event *ev)
 {
 	pthread_mutex_lock(&ctx->lock);
 	(void)event_del(ev);
+	pthread_mutex_unlock(&ctx->lock);
+
+	event_free(ev);
+}
+
+extern int
+netcore_reload_hook_add(struct netcore_context *ctx,
+    int (*func)(void *arg), void *arg)
+{
+	struct netcore_reload_hook *hook;
+
+	assert(ctx);
+	assert(func);
+
+	hook = (struct netcore_reload_hook *)malloc(sizeof(*hook));
+	if (hook == NULL) {
+		p_err("cannot allocate memory.\n");
+		return -1;
+	}
+	hook->func = func;
+	hook->arg = arg;
+
+	LIST_INSERT_HEAD(&ctx->reload_hooks, hook, next);
+
+	return 0;
+}
+
+extern void
+netcore_reload(struct netcore_context *ctx)
+{
+	pthread_mutex_lock(&ctx->lock);
+	ctx->reload = true;
 	pthread_mutex_unlock(&ctx->lock);
 }
 

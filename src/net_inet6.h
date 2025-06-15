@@ -13,23 +13,17 @@
 struct netinet6_rx_context {
 	struct netcore_context *net_ctx;
 	struct rx_context *rx_ctx;
-	int sock;
-	struct event *ev;
-	struct sockaddr_in6 mc_group;
-	struct sockaddr_storage ss_src;
-	int mc_if;
+	const char *dev;
+	int rx_sock;
+	struct event *rx_ev;
 
 	uint8_t rxbuf[INET6_MTU];
-
-	int (*cb)(void *data, size_t size, void *arg);
-	void *cb_arg;
 };
 
 struct netinet6_tx_context {
-	int sock;
-	struct sockaddr_in6 mc_group;
-	struct sockaddr_storage ss_src;
-	int mc_if;
+	struct netcore_context *net_ctx;
+	const char *dev;
+	int tx_sock;
 };
 
 extern int netinet6_rx_initialize(struct netinet6_rx_context *ctx,
@@ -37,7 +31,7 @@ extern int netinet6_rx_initialize(struct netinet6_rx_context *ctx,
     struct rx_context *rx_ctx,
     const char *dev);
 extern int netinet6_tx_initialize(struct netinet6_tx_context *ctx,
-    const char *dev);
+    struct netcore_context *core_ctx, const char *dev);
 extern void netinet6_rx_deinitialize(struct netinet6_rx_context *ctx);
 
 extern void netinet6_tx(struct iovec *iov, int iovcnt, void *arg);

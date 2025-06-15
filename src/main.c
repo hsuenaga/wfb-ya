@@ -230,7 +230,7 @@ _main(int argc, char *argv[])
 
 	p_debug("Initializing tx components\n");
 	if (wfb_options.tx_wired) {
-		netinet6_tx_initialize(&in6t_ctx, wfb_options.tx_wired);
+		netinet6_tx_initialize(&in6t_ctx, &net_ctx, wfb_options.tx_wired);
 		if (rx_context_set_mirror(&rx_ctx, netinet6_tx, &in6t_ctx) < 0) {
 			p_err("Cannot Attach NetRx\n");
 			exit(0);
