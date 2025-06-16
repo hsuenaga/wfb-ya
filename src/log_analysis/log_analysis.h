@@ -18,6 +18,7 @@ struct log_analysis_opt {
 	enum output_types out_type;
 	bool local_play;
 	bool interactive;
+	bool dump_message;
 };
 
 #endif /* __LOG_ANALYSIS_H__ */

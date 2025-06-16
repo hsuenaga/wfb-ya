@@ -21,6 +21,7 @@
 #ifdef ENABLE_GSTREAMER
 #include "log_h265.h"
 #endif
+#include "log_message.h"
 #include "shell.h"
 
 struct wfb_opt wfb_options = {
@@ -33,6 +34,7 @@ struct log_analysis_opt options = {
 	.out_type = OUTPUT_CSV,
 	.local_play = false,
 	.interactive = false,
+	.dump_message = false,
 };
 
 static void
@@ -46,7 +48,7 @@ print_help(const char *path)
 	printf("%s --WFB-YA log analyzer\n", name);
 	printf("\n");
 	printf("Synopsis:\n");
-	printf("\t%s [-f <name>] [-o <name>] [-t <type>] [-l] [-i] [-d]\n",
+	printf("\t%s [-f <name>] [-o <name>] [-t <type>] [-l] [-i] [-m] [-d]\n",
 	    name);
 	printf("Options:\n");
 	printf("\t-f <name> ... specify input file name. default: STDIN\n");
@@ -56,6 +58,7 @@ print_help(const char *path)
 	printf("\t-l ... enable local play(GStreamer)\n");
 #endif
 	printf("\t-i ... interactive mode\n");
+	printf("\t-m ... dump messages.\n");
 	printf("\t-d ... enable debug log.\n");
 	printf("Output Foramt <type>:\n");
 	printf("\tcsv .. comma separated values(default).\n");
@@ -75,7 +78,7 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "f:o:t:w:lidh")) != -1) {
+	while ((ch = getopt(argc, argv, "f:o:t:w:limdh")) != -1) {
 		switch (ch) {
 			case 'f':
 				options.file_name_in = optarg;
@@ -118,6 +121,9 @@ parse_options(int *argc0, char **argv0[])
 				fprintf(stderr, "GStreamer is diabled.\n");
 				exit(0);
 #endif
+				break;
+			case 'm':
+				options.dump_message = true;
 				break;
 			case 'i':
 				options.interactive = true;
@@ -184,6 +190,11 @@ _main(int argc, char *argv[])
 		exit(1);
 	}
 #endif
+
+	if (options.dump_message) {
+		dump_message(fp_out, ls);
+		exit(1);
+	}
 
 	switch (options.out_type) {
 		case OUTPUT_CSV:

@@ -150,6 +150,7 @@ set(wfb_log_analysis_srcs
 	src/log_analysis/log_csv.c
 	src/log_analysis/log_json.c
 	src/log_analysis/log_summary.c
+	src/log_analysis/log_message.c
 	src/log_analysis/shell.c
 	src/util_msg.c
 	src/compat.c

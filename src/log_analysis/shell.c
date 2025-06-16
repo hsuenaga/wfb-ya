@@ -9,6 +9,7 @@
 #include "log_json.h"
 #include "log_csv.h"
 #include "log_summary.h"
+#include "log_message.h"
 #ifdef ENABLE_GSTREAMER
 #include "log_h265.h"
 #endif
@@ -81,6 +82,18 @@ shell_show_json_block(struct shell_context *ctx, struct shell_token *token)
 	return 0;
 }
 
+static int
+shell_show_message(struct shell_context *ctx, struct shell_token *token)
+{
+	if (!ctx->ls) {
+		p_info("No file loaded.\n");
+		return -1;
+	}
+
+	dump_message(ctx->fp_out, ctx->ls);
+
+	return 0;
+}
 
 static int
 shell_write_csv(struct shell_context *ctx, struct shell_token *token)
@@ -163,7 +176,6 @@ shell_write_json_block(struct shell_context *ctx, struct shell_token *token)
 	return 0;
 }
 
-
 #ifdef ENABLE_GSTREAMER
 static int
 shell_write_mp4(struct shell_context *ctx, struct shell_token *token)
@@ -225,6 +237,7 @@ static int
 shell_load(struct shell_context *ctx, struct shell_token *token)
 {
 	FILE *fp;
+	struct log_store *ls;
 
 	token_next(token);
 	if (token->cur == NULL) {
@@ -238,13 +251,17 @@ shell_load(struct shell_context *ctx, struct shell_token *token)
 		return -1;
 	}
 	p_info("Loading %s...\n", token->cur);
-	ctx->ls = load_log(fp);
+	ls = load_log(fp);
 	fclose(fp);
 
-	if (ctx->ls == NULL) {
+	if (ls == NULL) {
 		p_info("Load error.\n");
 		return -1;
 	}
+	if (ctx->ls) {
+		free_log(ctx->ls);
+	}
+	ctx->ls = ls;
 	p_info("%u packets loaded.\n", ctx->ls->n_pkts);
 	return 0;
 }
@@ -296,6 +313,7 @@ static struct shell_cmd_def show_cmds[] = {
 	{ "csv", NULL, shell_show_csv },
 	{ "json", NULL, shell_show_json },
 	{ "json_block", NULL, shell_show_json_block },
+	{ "message", NULL, shell_show_message },
 	{NULL, NULL, NULL}
 };
 

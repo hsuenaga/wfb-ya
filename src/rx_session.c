@@ -105,12 +105,12 @@ rx_session(struct rx_context *ctx)
 	crypto_wfb_session_key_set(hdr->session_key, sizeof(hdr->session_key));
 	ctx->has_session_key = true;
 
-	rx_session_dump(ctx);
-
 	if (tx_reboot) {
 		/* rotate log file */
 		rx_log_create(ctx);
 	}
+
+	rx_session_dump(ctx);
 
 	return 0;
 }

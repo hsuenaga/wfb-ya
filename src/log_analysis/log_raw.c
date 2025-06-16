@@ -24,6 +24,7 @@ dump_header(struct rx_log_frame_header *hd)
 	p_debug("SEQ: %" PRIu64 "\n", le64toh(hd->seq));
 	p_debug("TimeStamp: %" PRIu64 ".%09" PRIu64 "\n",
 	    le64toh(hd->tv_sec), le64toh(hd->tv_nsec));
+	p_debug("Type: %u\n", hd->type);
 	p_debug("Size: %u\n", le32toh(hd->size));
 	p_debug("Block: %" PRIu64 "\n", le64toh(hd->block_idx));
 	p_debug("Fragemnt: %u\n", hd->fragment_idx);
@@ -103,7 +104,8 @@ log_v_alloc(struct log_store *ls, struct rx_log_frame_header *hd)
 		case FRAME_TYPE_MSG_INFO:
 		case FRAME_TYPE_MSG_ERR:
 		case FRAME_TYPE_MSG_DEBUG:
-			msg_kv = log_kv_alloc(&ls->msg_kvh, hd->seq, KV_TYPE_MSG);
+			msg_kv = log_kv_alloc(&ls->msg_kvh,
+			   hd->seq, KV_TYPE_MSG);
 			if (msg_kv == NULL)
 				return NULL;
 			break;
@@ -116,7 +118,8 @@ log_v_alloc(struct log_store *ls, struct rx_log_frame_header *hd)
 			kv = log_kv_alloc(&ls->kvh, hd->seq, KV_TYPE_SEQ);
 			if (kv == NULL)
 				return NULL;
-			block_kv = log_kv_alloc(&ls->block_kvh, hd->block_idx, KV_TYPE_BLK);
+			block_kv = log_kv_alloc(&ls->block_kvh,
+			    hd->block_idx, KV_TYPE_BLK);
 			if (block_kv == NULL)
 				return NULL;
 			break;
@@ -150,25 +153,35 @@ log_v_alloc(struct log_store *ls, struct rx_log_frame_header *hd)
 static void
 mark_corrupt(struct log_store *ls, struct log_data_v *v)
 {
-	v->kv->has_ethernet_frame = true;
-	v->kv->has_corrupted_frame = true;
-	v->block_kv->has_ethernet_frame = true;
-	v->block_kv->has_corrupted_frame = true;
+	if (v->kv) {
+		v->kv->has_ethernet_frame = true;
+		v->kv->has_corrupted_frame = true;
+	}
+	if (v->block_kv) {
+		v->block_kv->has_ethernet_frame = true;
+		v->block_kv->has_corrupted_frame = true;
+	}
 }
 
 static void
 mark_inet6(struct log_store *ls, struct log_data_v *v)
 {
-	v->kv->has_ethernet_frame = true;
-	v->block_kv->has_ethernet_frame = true;
-
-	v->kv->n_ethernet_frame++;
-	v->block_kv->n_ethernet_frame++;
+	if (v->kv) {
+		v->kv->has_ethernet_frame = true;
+		v->kv->n_ethernet_frame++;
+	}
+	if (v->block_kv) {
+		v->block_kv->has_ethernet_frame = true;
+		v->block_kv->n_ethernet_frame++;
+	}
 }
 
 static void
 mark_h265(struct log_store *ls, struct log_data_v *v)
 {
+	if (!v->kv || !v->block_kv)
+		return;
+
 	v->kv->n_h265_frame++;
 	v->block_kv->n_h265_frame++;
 
@@ -290,8 +303,6 @@ process_frame_header(FILE *fp, struct log_store *ls)
 	if (v == NULL)
 		return -1;
 
-	assert(v->kv);
-
 	v->size = hd.size;
 
 	if (v->ts.tv_sec == 0 && v->ts.tv_nsec == 0)
@@ -399,11 +410,33 @@ free_kvh(struct log_data_kv_hd *kvh)
 	assert(kvh);
 
 	TAILQ_FOREACH_SAFE(kv, kvh, chain, kvp) {
+		p_debug("Delete KV\n");
 		TAILQ_FOREACH_SAFE(v, &kv->vh, chain, vp) {
-			if (v->buf)
-				free(v->buf);
-			TAILQ_REMOVE(&kv->vh, v, chain);
-			free(v);
+			p_debug("Delete V\n");
+			switch (kv->type) {
+				case KV_TYPE_SEQ:
+					p_debug("Delete SEQ\n");
+					TAILQ_REMOVE(&kv->vh, v, chain);
+					v->kv = NULL;
+					break;
+				case KV_TYPE_BLK:
+					p_debug("Delete BLK\n");
+					TAILQ_REMOVE(&kv->vh, v, block_chain);
+					v->block_kv = NULL;
+					break;
+				case KV_TYPE_MSG:
+					p_debug("Delete MSG\n");
+					TAILQ_REMOVE(&kv->vh, v, msg_chain);
+					v->msg_kv = NULL;
+					break;
+				default:
+					break;
+			}
+			if (!v->kv && !v->block_kv && !v->msg_kv) {
+				if (v->buf)
+					free(v->buf);
+				free(v);
+			}
 		}
 		TAILQ_REMOVE(kvh, kv, chain);
 		free(kv);
