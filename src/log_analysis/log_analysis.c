@@ -48,8 +48,8 @@ print_help(const char *path)
 	printf("%s --WFB-YA log analyzer\n", name);
 	printf("\n");
 	printf("Synopsis:\n");
-	printf("\t%s [-f <name>] [-o <name>] [-t <type>] [-l] [-i] [-m] [-d]\n",
-	    name);
+	printf("\t%s [-f <name>] [-o <name>] [-t <type>] [-l] [-i [<name>]]"
+	    " [-m] [-d]\n", name);
 	printf("Options:\n");
 	printf("\t-f <name> ... specify input file name. default: STDIN\n");
 	printf("\t-o <name> ... specify output file name. default: STDOUT\n");
@@ -57,7 +57,8 @@ print_help(const char *path)
 #ifdef ENABLE_GSTREAMER
 	printf("\t-l ... enable local play(GStreamer)\n");
 #endif
-	printf("\t-i ... interactive mode\n");
+	printf("\t-i [<name>] ... interactive mode."
+	    " file <name> will be loaded.\n");
 	printf("\t-m ... dump messages.\n");
 	printf("\t-d ... enable debug log.\n");
 	printf("Output Foramt <type>:\n");
@@ -78,7 +79,7 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "f:o:t:w:limdh")) != -1) {
+	while ((ch = getopt(argc, argv, "f:o:t:w:li:mdh")) != -1) {
 		switch (ch) {
 			case 'f':
 				options.file_name_in = optarg;
@@ -127,6 +128,7 @@ parse_options(int *argc0, char **argv0[])
 				break;
 			case 'i':
 				options.interactive = true;
+				options.file_name_in = optarg;
 				break;
 			case 'd':
 				wfb_options.debug = 1;
@@ -155,7 +157,7 @@ _main(int argc, char *argv[])
 	parse_options(&argc, &argv);
 
 	if (options.interactive) {
-		if (shell() < 0)
+		if (shell(options.file_name_in) < 0)
 			exit(0);
 
 		exit(1);

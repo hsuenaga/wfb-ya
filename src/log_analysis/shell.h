@@ -52,6 +52,6 @@ struct shell_context {
 	struct shell_cmd_tree *cur_tree;
 };
 
-extern int shell(void);
+extern int shell(const char *file_name);
 
 #endif /* __SHELL_H__ */

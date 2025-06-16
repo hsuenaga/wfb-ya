@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "../util_msg.h"
 
@@ -16,6 +17,32 @@
 #include "log_raw.h"
 
 #include "shell.h"
+
+static struct log_store *
+load_file(const char *file_name)
+{
+	FILE *fp;
+	struct log_store *ls;
+
+	assert(file_name);
+
+	fp = fopen(file_name, "r");
+	if (fp == NULL) {
+		p_info("Cannot open file %s: %s\n", file_name, strerror(errno));
+		return NULL;
+	}
+	p_info("Loading %s...\n", file_name);
+	ls = load_log(fp);
+	fclose(fp);
+
+	if (ls == NULL) {
+		p_info("Load error.\n");
+		return NULL;
+	}
+	p_info("%u packets loaded.\n", ls->n_pkts);
+
+	return ls;
+}
 
 static const char *
 expand_token(struct shell_token *token)
@@ -245,24 +272,15 @@ shell_load(struct shell_context *ctx, struct shell_token *token)
 		p_info("%s <file_name>\n", expand_token(token));
 		return -1;
 	}
-	fp = fopen(token->cur, "r");
-	if (fp == NULL) {
-		p_info("No such file: %s\n", token->cur);
-		return -1;
-	}
-	p_info("Loading %s...\n", token->cur);
-	ls = load_log(fp);
-	fclose(fp);
 
+	ls = load_file(token->cur);
 	if (ls == NULL) {
-		p_info("Load error.\n");
 		return -1;
 	}
 	if (ctx->ls) {
 		free_log(ctx->ls);
 	}
 	ctx->ls = ls;
-	p_info("%u packets loaded.\n", ctx->ls->n_pkts);
 	return 0;
 }
 
@@ -481,7 +499,7 @@ shell_read(FILE *fp_in, FILE *fp_out)
 }
 
 int
-shell(void)
+shell(const char *file_name)
 {
 	struct shell_context ctx;
 	struct shell_token *token;
@@ -489,6 +507,10 @@ shell(void)
 	if (shell_init(&ctx) < 0) {
 		p_err("Cannot initialize shell.\n");
 		return -1;
+	}
+
+	if (file_name) {
+		ctx.ls = load_file(file_name);
 	}
 
 	while ( (token = shell_read(ctx.fp_in, ctx.fp_out))) {
