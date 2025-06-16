@@ -47,6 +47,7 @@ log_store_alloc(void)
 	ls->min_frame_size = FRAME_SIZE_MAX;
 	TAILQ_INIT(&ls->kvh);
 	TAILQ_INIT(&ls->block_kvh);
+	TAILQ_INIT(&ls->msg_kvh);
 
 	return ls;
 }
@@ -95,24 +96,54 @@ log_kv_alloc(struct log_data_kv_hd *kvh, uint64_t key, enum kv_type_t type)
 static struct log_data_v *
 log_v_alloc(struct log_store *ls, struct rx_log_frame_header *hd)
 {
-	struct log_data_kv *kv, *block_kv;
+	struct log_data_kv *kv = NULL, *block_kv = NULL, *msg_kv = NULL;
 	struct log_data_v *v;
 
-	kv = log_kv_alloc(&ls->kvh, hd->seq, KV_TYPE_SEQ);
-	if (kv == NULL)
-		return NULL;
-	block_kv = log_kv_alloc(&ls->block_kvh, hd->block_idx, KV_TYPE_BLK);
-	if (block_kv == NULL)
-		return NULL;
+	switch(hd->type) {
+		case FRAME_TYPE_MSG_INFO:
+		case FRAME_TYPE_MSG_ERR:
+		case FRAME_TYPE_MSG_DEBUG:
+			msg_kv = log_kv_alloc(&ls->msg_kvh, hd->seq, KV_TYPE_MSG);
+			if (msg_kv == NULL)
+				return NULL;
+			break;
+		case FRAME_TYPE_INET6:
+			/* fallthrough */
+		case FRAME_TYPE_DECODE:
+			/* fallthrough */
+		case FRAME_TYPE_CORRUPT:
+			/* fallthrough */
+			kv = log_kv_alloc(&ls->kvh, hd->seq, KV_TYPE_SEQ);
+			if (kv == NULL)
+				return NULL;
+			block_kv = log_kv_alloc(&ls->block_kvh, hd->block_idx, KV_TYPE_BLK);
+			if (block_kv == NULL)
+				return NULL;
+			break;
+
+		default:
+			return NULL;
+		
+	}
 
 	v = (struct log_data_v *)malloc(sizeof(*v));
 	if (v == NULL)
 		return NULL;
 	memset(v, 0, sizeof(*v));
-	v->kv = kv;
-	v->block_kv = block_kv;
-	TAILQ_INSERT_TAIL(&kv->vh, v, chain);
-	TAILQ_INSERT_TAIL(&block_kv->vh, v, block_chain);
+
+	if (kv) {
+		v->kv = kv;
+		TAILQ_INSERT_TAIL(&kv->vh, v, chain);
+	}
+	if (block_kv) {
+		v->block_kv = block_kv;
+		TAILQ_INSERT_TAIL(&block_kv->vh, v, block_chain);
+	}
+	if (msg_kv) {
+		v->block_kv = msg_kv;
+		TAILQ_INSERT_TAIL(&msg_kv->vh, v, msg_chain);
+	}
+
 	return v;
 }
 
@@ -317,6 +348,12 @@ process_frame_header(FILE *fp, struct log_store *ls)
 
 		mark_h265(ls, v);
 		break;
+	case FRAME_TYPE_MSG_INFO:
+	case FRAME_TYPE_MSG_ERR:
+	case FRAME_TYPE_MSG_DEBUG:
+		if (process_payload(fp, v, hd.size) < 0)
+			return -1;
+		break;
 	default:
 		p_err("Unknown frame type %d.\n", hd.type);
 		break;
@@ -353,24 +390,34 @@ load_log(FILE *fp)
 	return ls;
 }
 
-void
-free_log(struct log_store *ls)
+static void
+free_kvh(struct log_data_kv_hd *kvh)
 {
 	struct log_data_kv *kv, *kvp;
 	struct log_data_v *v, *vp;
 
-	if (!ls)
-		return;
+	assert(kvh);
 
-	TAILQ_FOREACH_SAFE(kv, &ls->kvh, chain, kvp) {
+	TAILQ_FOREACH_SAFE(kv, kvh, chain, kvp) {
 		TAILQ_FOREACH_SAFE(v, &kv->vh, chain, vp) {
 			if (v->buf)
 				free(v->buf);
 			TAILQ_REMOVE(&kv->vh, v, chain);
 			free(v);
 		}
-		TAILQ_REMOVE(&ls->kvh, kv, chain);
+		TAILQ_REMOVE(kvh, kv, chain);
 		free(kv);
 	}
+}
+
+void
+free_log(struct log_store *ls)
+{
+	if (!ls)
+		return;
+
+	free_kvh(&ls->kvh);
+	free_kvh(&ls->block_kvh);
+	free_kvh(&ls->msg_kvh);
 	free(ls);
 }

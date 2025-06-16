@@ -147,10 +147,11 @@ rx_log_create(struct rx_context *ctx)
 	struct rx_log_handler *log = &ctx->log_handler;
 	struct rx_log_file_header hd;
 
-	if (log->fp)
+	if (log->fp) {
 		fclose(log->fp);
-	if (wfb_options.log_file == NULL) {
 		log->fp = NULL;
+	}
+	if (wfb_options.log_file == NULL) {
 		return;
 	}
 	fixup_filename(log);
@@ -177,4 +178,61 @@ rx_log_create(struct rx_context *ctx)
 		log->fp = NULL;
 	}
 	fflush(log->fp);
+}
+
+int
+rx_log_hook(void *arg, enum msg_hook_type msg_type, const char *fmt, va_list ap)
+{
+	struct rx_context *ctx = (struct rx_context *)arg;
+	struct rx_log_handler *log = &ctx->log_handler;
+	struct rx_log_frame_header hd;
+	struct timespec ts;
+	uint8_t type;
+	static int seq = 0;
+
+	char buf[BUFSIZ];
+	int r;
+
+	/* DON'T USE UTIL_MSG FUNCTIONS */
+
+	assert(ctx);
+	assert(fmt);
+
+	if (log->fp == NULL) {
+		return 0;
+	}
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0) {
+		return -1;
+	}
+
+	switch (msg_type) {
+		case MSG_TYPE_INFO:
+			type = FRAME_TYPE_MSG_INFO;
+			break;
+		case MSG_TYPE_ERR:
+			type = FRAME_TYPE_MSG_ERR;
+			break;
+		case MSG_TYPE_DEBUG:
+			type = FRAME_TYPE_MSG_DEBUG;
+			break;
+		default:
+			return -1;
+	}
+
+	r = vsnprintf(buf, sizeof(buf), fmt, ap);
+	if (r >= sizeof(buf))
+		return -1;
+
+	memset(&hd, 0, sizeof(hd));
+	hd.tv_sec = htole64(ts.tv_sec);
+	hd.tv_nsec = htole64(ts.tv_nsec);
+	hd.seq = seq++;
+	hd.type = type;
+	hd.size = r;
+
+	(void)fwrite(&hd, sizeof(hd), 1, log->fp);
+	(void)fwrite(buf, r, 1, log->fp); // exclude terminating '\0'
+	fflush(log->fp);
+
+	return r;
 }

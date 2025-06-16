@@ -9,6 +9,7 @@ enum kv_type_t {
 	KV_TYPE_INVAL,
 	KV_TYPE_SEQ,
 	KV_TYPE_BLK,
+	KV_TYPE_MSG,
 };
 
 TAILQ_HEAD(log_data_kv_hd, log_data_kv);
@@ -48,6 +49,9 @@ struct log_data_v {
 
 	struct log_data_kv *block_kv;
 	TAILQ_ENTRY(log_data_v) block_chain;
+
+	struct log_data_kv *msg_kv;
+	TAILQ_ENTRY(log_data_v) msg_chain;
 };
 
 struct log_store {
@@ -70,6 +74,7 @@ struct log_store {
 	uint32_t min_frame_size;
 	uint64_t total_bytes;
 
+	struct log_data_kv_hd msg_kvh;
 	struct log_data_kv_hd block_kvh;
 	struct log_data_kv_hd kvh;
 };

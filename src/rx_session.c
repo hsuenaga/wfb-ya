@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <inttypes.h>
 #include <assert.h>
@@ -33,6 +34,7 @@ rx_session(struct rx_context *ctx)
 {
 	struct wfb_session_hdr *hdr;
 	uint64_t epoch;
+	bool tx_reboot = false;
 	int r;
 
 	assert(ctx);
@@ -51,14 +53,15 @@ rx_session(struct rx_context *ctx)
 	hdr = (struct wfb_session_hdr *)ctx->wfb.cipher;
 	epoch = be64toh(hdr->epoch);
 
-	if (epoch < ctx->epoch) {
-		p_err("Invalid Epoch\n");
-		// XXX: ... But how to recover from Tx reboot???
-		return -1;
-	}
-	if (ctx->has_session_key && epoch == ctx->epoch) {
+	if (ctx->has_session_key &&
+	    memcmp(ctx->session_key, hdr->session_key, sizeof(ctx->session_key)) == 0 &&
+	    epoch == ctx->epoch) {
 		// No rekeying required. drop the frame siliently.
 		return 0;
+	}
+
+	if (epoch <= ctx->epoch) {
+		tx_reboot = true;
 	}
 
 	// Start rekeying. We need strict error checking before accepting.
@@ -104,7 +107,10 @@ rx_session(struct rx_context *ctx)
 
 	rx_session_dump(ctx);
 
-	rx_log_create(ctx);
+	if (tx_reboot) {
+		/* rotate log file */
+		rx_log_create(ctx);
+	}
 
 	return 0;
 }

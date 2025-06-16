@@ -23,6 +23,7 @@
 #include "net_pcap.h"
 #include "net_inet6.h"
 #include "rx_core.h"
+#include "rx_log.h"
 #include "crypto_wfb.h"
 #include "fec_wfb.h"
 #ifdef ENABLE_GSTREAMER
@@ -227,6 +228,7 @@ _main(int argc, char *argv[])
 		p_err("Cannot Initialize Rx.\n");
 		exit(0);
 	}
+	msg_set_hook(rx_log_hook, &rx_ctx);
 
 	p_debug("Initializing tx components\n");
 	if (wfb_options.tx_wired) {

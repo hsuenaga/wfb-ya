@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include "rx_core.h"
+#include "util_msg.h"
 
 #define RX_LOG_VERSION		1
 #define RX_LOG_SIGNATURE	0xdeadbeef
@@ -11,6 +12,9 @@
 #define FRAME_TYPE_INET6	1
 #define FRAME_TYPE_DECODE	2
 #define FRAME_TYPE_CORRUPT	3
+#define FRAME_TYPE_MSG_INFO	252
+#define FRAME_TYPE_MSG_ERR	253
+#define FRAME_TYPE_MSG_DEBUG	254
 #define FRAME_TYPE_MAX		255
 
 #define DBM_INVAL		INT16_MIN
@@ -55,5 +59,6 @@ extern void rx_log_frame(struct rx_context *ctx,
 extern void rx_log_decode(struct rx_context *ctx,
     uint64_t block_idx, uint8_t fragment_idx, uint8_t *data, size_t size);
 extern void rx_log_create(struct rx_context *ctx);
+extern int rx_log_hook(void *arg, enum msg_hook_type msg_type, const char *fmt, va_list ap);
 
 #endif /* __RX_LOG_H__ */

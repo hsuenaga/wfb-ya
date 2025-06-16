@@ -4,9 +4,19 @@
 #include <stdarg.h>
 #include "util_attribute.h"
 
+enum msg_hook_type {
+	MSG_TYPE_NONE,
+	MSG_TYPE_INFO,
+	MSG_TYPE_ERR,
+	MSG_TYPE_DEBUG,
+};
+
 extern void __p_info(const char *fmt, ...) __printf;
 extern void __p_err(const char *fmt, ...) __printf;
 extern void __p_debug(const char *fmt, ...) __printf;
+extern void msg_set_hook(
+    int(*func)(void *, enum msg_hook_type, const char *, va_list),
+    void *arg);
 extern int debug;
 
 #define p_info(fmt, ...) do { \
