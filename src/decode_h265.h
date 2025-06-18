@@ -17,11 +17,20 @@ struct decode_h265_context {
 	GMainLoop *loop;
 
 	pthread_mutex_t lock;
-	pthread_t tid_loop;
+	pthread_t tid;
 	int bus_watch_id;
 	int initialized;
 	int closing;
 };
+
+#define DECODE_H265_UNREF_OBJ(name, owner)			\
+	do {							\
+		if (ctx->name != NULL) {			\
+			if (owner)				\
+				gst_object_unref(ctx->name);	\
+			ctx->name = NULL;			\
+		}						\
+	} while (/* CONSTCOND */ 0);
 
 extern int decode_h265_context_init(struct decode_h265_context *ctx);
 extern void decode_h265_context_deinit(struct decode_h265_context *ctx);

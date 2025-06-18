@@ -14,6 +14,18 @@
 #include "compat.h"
 
 static void
+sync_fp(FILE *fp)
+{
+	if (!fp)
+		return;
+
+	while (fflush(fp) != 0) {
+		;
+	}
+	//fsync(fileno(fp));
+}
+
+static void
 fixup_filename(struct rx_log_handler *log)
 {
 	struct stat st;
@@ -60,7 +72,7 @@ rx_log_corrupt(struct rx_context *ctx)
 		memcpy(hd.rx_src, &ctx->rx_src.sin6_addr, sizeof(hd.rx_src));
 	}
 	(void)fwrite(&hd, sizeof(hd), 1, log->fp);
-	fflush(log->fp);
+	sync_fp(log->fp);
 }
 
 void
@@ -98,7 +110,7 @@ rx_log_frame(struct rx_context *ctx,
 	    hd.seq, hd.block_idx, hd.fragment_idx, size);
 
 	(void)fwrite(&hd, sizeof(hd), 1, log->fp);
-	fflush(log->fp);
+	sync_fp(log->fp);
 }
 
 void
@@ -138,7 +150,7 @@ rx_log_decode(struct rx_context *ctx,
 
 	(void)fwrite(&hd, sizeof(hd), 1, log->fp);
 	(void)fwrite(data, size, 1, log->fp);
-	fflush(log->fp);
+	sync_fp(log->fp);
 }
 
 void
@@ -177,7 +189,7 @@ rx_log_create(struct rx_context *ctx)
 		fclose(log->fp);
 		log->fp = NULL;
 	}
-	fflush(log->fp);
+	sync_fp(log->fp);
 }
 
 int
@@ -232,7 +244,7 @@ rx_log_hook(void *arg, enum msg_hook_type msg_type, const char *fmt, va_list ap)
 
 	(void)fwrite(&hd, sizeof(hd), 1, log->fp);
 	(void)fwrite(buf, r, 1, log->fp); // exclude terminating '\0'
-	fflush(log->fp);
+	sync_fp(log->fp);
 
 	return r;
 }

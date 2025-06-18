@@ -16,8 +16,13 @@ struct netcore_context {
 	pthread_mutex_t lock;
 	pthread_t tid;
 	struct event *wdt;
+	struct event *sighup;
+	struct event *sigint;
+	struct event *sigterm;
 	struct timeval wdt_to;
 	bool reload;
+	bool cancel;
+	bool stopped;
 
 	LIST_HEAD(netcore_rh, netcore_reload_hook) reload_hooks;
 
@@ -33,6 +38,7 @@ extern void netcore_rx_event_del(struct netcore_context *ctx, struct event *ev);
 extern int netcore_reload_hook_add(struct netcore_context *ctx,
     int (*func)(void *arg), void *arg);
 extern void netcore_reload(struct netcore_context *ctx);
+extern void netcore_exit(struct netcore_context *ctx);
 
 extern int netcore_thread_start(struct netcore_context *ctx);
 extern void netcore_thread_join(struct netcore_context *ctx);

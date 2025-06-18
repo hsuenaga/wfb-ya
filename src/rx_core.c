@@ -17,7 +17,7 @@
 #include "util_msg.h"
 
 int
-rx_context_init(struct rx_context *ctx, uint32_t channel_id)
+rx_context_initialize(struct rx_context *ctx, uint32_t channel_id)
 {
 	assert(ctx);
 
@@ -25,6 +25,17 @@ rx_context_init(struct rx_context *ctx, uint32_t channel_id)
 	ctx->channel_id = channel_id;
 
 	return 0;
+}
+
+void
+rx_context_deinitialize(struct rx_context *ctx)
+{
+	assert(ctx);
+
+	if (ctx->rx_ring) {
+		rbuf_free(ctx->rx_ring);
+		ctx->rx_ring = NULL;
+	}
 }
 
 int
@@ -61,6 +72,7 @@ rx_decode_frame(struct rx_context *ctx, uint8_t *data, size_t size)
 
 		ctx->decode_handler[i].func(data, size,
 		    ctx->decode_handler[i].arg);
+		wfb_stats.decoded_frames++;
 	}
 }
 
@@ -117,6 +129,7 @@ rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size)
 
 		ctx->mirror_handler[i].func(iov, iovcnt,
 		    ctx->mirror_handler[i].arg);
+		wfb_stats.mirrored_frames++;
 	}
 }
 
@@ -178,17 +191,22 @@ rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen)
 	ctx->rx_src.sin6_family = AF_UNSPEC;
 
 	parsed = pcap_frame_parse(rxbuf, rxlen, &ctx->pcap);
-	if (parsed < 0)
+	if (parsed < 0) {
+		wfb_stats.pcap_libpcap_frame_error++;
 		return -1;
+	}
 	rxbuf += parsed;
 	rxlen -= parsed;
 
 	parsed = radiotap_frame_parse(rxbuf, rxlen, &ctx->radiotap);
-	if (parsed < 0)
+	if (parsed < 0) {
+		wfb_stats.pcap_radiotap_frame_error++;
 		return -1;
+	}
 	if (ctx->radiotap.bad_fcs) {
 		/* just notify 'detected something'. */
 		rx_mirror_frame(ctx, NULL, 0);
+		wfb_stats.pcap_bad_fcs++;
 		return -1;
 	}
 	rxbuf += parsed;
@@ -199,20 +217,27 @@ rx_frame_pcap(struct rx_context *ctx, void *rxbuf, size_t rxlen)
 		rxlen -= 4; // Strip FCS from tail.
 	
 	parsed = ieee80211_frame_parse(rxbuf, rxlen, &ctx->ieee80211);
-	if (parsed < 0)
+	if (parsed < 0) {
+		wfb_stats.pcap_80211_frame_error++;
 		return -1;
+	}
 	rxbuf += parsed;
 	rxlen -= parsed;
-	if (ctx->channel_id && ctx->channel_id != ctx->ieee80211.channel_id)
+	if (ctx->channel_id && ctx->channel_id != ctx->ieee80211.channel_id) {
+		wfb_stats.pcap_invalid_channel_id++;
 		return -1;
+	}
 
 	rx_mirror_frame(ctx, rxbuf, rxlen);
 
 	parsed = wfb_frame_parse(rxbuf, rxlen, &ctx->wfb);
-	if (parsed < 0)
+	if (parsed < 0) {
+		wfb_stats.pcap_wfb_frame_error++;
 		return -1;
+	}
 	rxbuf += parsed;
 	rxlen -= parsed;
+	wfb_stats.pcap_accept++;
 
 	return rx_wfb(ctx);
 }
@@ -228,21 +253,27 @@ rx_frame_udp(struct rx_context *ctx, void *rxbuf, size_t rxlen)
 	// NOTE: ctx->rx_src is set by net_inet6.c
 
 	parsed = udp_frame_parse(rxbuf, rxlen, &ctx->udp);
-	if (parsed < 0)
+	if (parsed < 0) {
+		wfb_stats.mc_udp_frame_error++;
 		return -1;
+	}
 	rxbuf += parsed;
 	rxlen -= parsed;
 	ctx->freq = ctx->udp.freq;
 	ctx->dbm = ctx->udp.dbm;
 	if (ctx->udp.flags & UDP_FLAG_CORRUPT) {
+		wfb_stats.mc_udp_corrupted_frames++;
 		rx_log_corrupt(ctx);
 	}
 
 	parsed = wfb_frame_parse(rxbuf, rxlen, &ctx->wfb);
-	if (parsed < 0)
+	if (parsed < 0) {
+		wfb_stats.mc_udp_wfb_frame_error++;
 		return -1;
+	}
 	rxbuf += parsed;
 	rxlen -= parsed;
+	wfb_stats.mc_accept++;
 
 	return rx_wfb(ctx);
 }

@@ -25,7 +25,8 @@ fec_zfec_new(struct fec_context *ctx, int k, int n)
 	return 0;
 }
 
-int fec_zfec_decode(struct fec_context *ctx,
+int
+fec_zfec_decode(struct fec_context *ctx,
     const uint8_t **in, uint8_t **out, unsigned *index, size_t size)
 {
 	struct zfec_context *zctx;

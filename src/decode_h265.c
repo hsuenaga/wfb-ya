@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
@@ -10,13 +11,25 @@
 #include "util_msg.h"
 
 static void *
-loop(void *arg)
+thread_main(void *arg)
 {
 	struct decode_h265_context *ctx = arg; 
+	GMainLoop *loop;
 
-	ctx->loop = g_main_loop_new(NULL, FALSE);
-	g_main_loop_run(ctx->loop);
-	g_main_loop_unref(ctx->loop);
+	/* decoder thread */
+
+	pthread_mutex_lock(&ctx->lock);
+	ctx->loop = loop = g_main_loop_new(NULL, FALSE);
+	pthread_mutex_unlock(&ctx->lock);
+
+	g_main_loop_run(loop);
+
+	pthread_mutex_lock(&ctx->lock);
+	ctx->loop = NULL;
+	ctx->closing = 1;
+	pthread_mutex_unlock(&ctx->lock);
+
+	g_main_loop_unref(loop);
 
 	return NULL;
 }
@@ -27,6 +40,8 @@ bus_call(GstBus *bus, GstMessage *msg, gpointer arg)
 	struct decode_h265_context *ctx = arg;
 	GError *err;
 	gchar *debug_info;
+
+	/* called from decoder thread */
 
 	switch (GST_MESSAGE_TYPE(msg)) {
 		case GST_MESSAGE_ERROR:
@@ -39,8 +54,12 @@ bus_call(GstBus *bus, GstMessage *msg, gpointer arg)
 			g_clear_error(&err);
 			g_free(debug_info);
 
-			ctx->closing = 1;
-			g_main_loop_quit(ctx->loop);
+			pthread_mutex_lock(&ctx->lock);
+			if (!ctx->closing) {
+				ctx->closing = 1;
+				g_main_loop_quit(ctx->loop);
+			}
+			pthread_mutex_unlock(&ctx->lock);
 			break;
 		case GST_MESSAGE_WARNING:
 			gst_message_parse_warning(msg, &err, &debug_info);
@@ -64,6 +83,8 @@ bus_call(GstBus *bus, GstMessage *msg, gpointer arg)
 		case GST_MESSAGE_QOS:
 		case GST_MESSAGE_LATENCY:
 		case GST_MESSAGE_ASYNC_DONE:
+		case GST_MESSAGE_NEED_CONTEXT:
+		case GST_MESSAGE_HAVE_CONTEXT:
 			break;
 		default:
 			p_err("Unhandled message %s => %s\n",
@@ -135,7 +156,7 @@ decode_h265_context_init(struct decode_h265_context *ctx)
 	g_object_set(ctx->source, "caps", caps, NULL);
 	g_object_set(ctx->source, "block", FALSE, NULL);
 	g_object_set(ctx->source, "emit-signals", FALSE, NULL);
-	g_object_set(ctx->source, "is-live", FALSE, NULL);
+	g_object_set(ctx->source, "is-live", TRUE, NULL);
 	gst_caps_unref(caps);
 
 	g_object_set(ctx->sink, "sync", FALSE, NULL);
@@ -161,32 +182,55 @@ decode_h265_context_init(struct decode_h265_context *ctx)
 void
 decode_h265_context_deinit(struct decode_h265_context *ctx)
 {
+	GstStateChangeReturn r;
 	void *ret;
 
-	pthread_mutex_lock(&ctx->lock);
-	if (ctx->closing) {
-		pthread_mutex_unlock(&ctx->lock);
+	/* called from main thread */
+
+	if (!ctx->initialized)
 		return;
+
+	pthread_mutex_lock(&ctx->lock);
+
+	if (!ctx->closing) {
+		r = gst_element_set_state(ctx->pipeline, GST_STATE_NULL);
+		if (r == GST_STATE_CHANGE_ASYNC) {
+			gst_element_get_state(ctx->pipeline,
+			    NULL, NULL,  GST_CLOCK_TIME_NONE);
+		}
+		ctx->closing = 1;
+		g_main_loop_quit(ctx->loop);
 	}
+
 	pthread_mutex_unlock(&ctx->lock);
 
-	ctx->closing = 1;
-	gst_element_set_state(ctx->pipeline, GST_STATE_NULL);
-	g_main_loop_quit(ctx->loop);
-	gst_object_unref(ctx->pipeline);
-	pthread_join(ctx->tid_loop, &ret);
+	pthread_join(ctx->tid, &ret);
 
+	DECODE_H265_UNREF_OBJ(input_queue, false);
+	DECODE_H265_UNREF_OBJ(source, false);
+	DECODE_H265_UNREF_OBJ(rtp, false);
+	DECODE_H265_UNREF_OBJ(h265, false);
+	DECODE_H265_UNREF_OBJ(conv, false);
+	DECODE_H265_UNREF_OBJ(sink_queue, false);
+	DECODE_H265_UNREF_OBJ(sink, false);
+	DECODE_H265_UNREF_OBJ(loop, false);
+	DECODE_H265_UNREF_OBJ(pipeline, true);
+	g_source_remove(ctx->bus_watch_id);
 	ctx->initialized = 0;
 }
 
 int
 decode_h265_thread_start(struct decode_h265_context *ctx)
 {
+	/* called from main thread */
+
+	assert(ctx);
+
 	if (!ctx->initialized) {
 		p_debug("Decoder context is not initialized.\n");
 		return -1;
 	}
-	pthread_create(&ctx->tid_loop, NULL, loop, ctx);
+	pthread_create(&ctx->tid, NULL, thread_main, ctx);
 
 	return 0;
 }
@@ -194,6 +238,9 @@ decode_h265_thread_start(struct decode_h265_context *ctx)
 int
 decode_h265_thread_join(struct decode_h265_context *ctx)
 {
+	/* called from main thread */
+	assert(ctx);
+
 	decode_h265_context_deinit(ctx);
 
 	return 0;
@@ -206,12 +253,22 @@ decode_h265(uint8_t *data, size_t size, void *arg)
 	GstBuffer *buf;
 	int ret;
 
+	/* called from main thread */
+
 	assert(ctx);
 	assert(data);
 	assert(size);
 
-	if (!ctx->initialized)
+	pthread_mutex_lock(&ctx->lock);
+
+	if (!ctx->initialized) {
+		pthread_mutex_unlock(&ctx->lock);
 		return;
+	}
+	if (ctx->closing) {
+		pthread_mutex_unlock(&ctx->lock);
+		return;
+	}
 
 	buf = gst_buffer_new_memdup(data, size);
 	assert(buf);
@@ -219,5 +276,6 @@ decode_h265(uint8_t *data, size_t size, void *arg)
 	g_signal_emit_by_name(ctx->source, "push-buffer", buf, &ret);
 	gst_buffer_unref(buf);
 
+	pthread_mutex_unlock(&ctx->lock);
 	return;
 }

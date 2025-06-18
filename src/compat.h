@@ -21,20 +21,16 @@
 #define DEF_WRX NULL
 #define DEF_ERX NULL
 #define DEF_ETX NULL
-#define DEF_KEY "./gs.key"
 #else
 /* Linux */
 #include <endian.h>
 #define DEF_WRX "wlan1"
 #define DEF_ERX NULL
 #define DEF_ETX NULL
-#define DEF_KEY "./gs.key"
 extern char *basename_r(const char *path, char *bname);
 #endif
 
-/* General */
-#define DEF_PID_FILE "/var/run/wfb_listener.pid"
-
+/* Missing macros */
 #ifndef NELEMS
 #define NELEMS(x) (sizeof((x))/sizeof((x)[0]))
 #endif

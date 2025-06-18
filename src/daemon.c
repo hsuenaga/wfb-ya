@@ -121,6 +121,12 @@ create_pid_file(const char *pid_file)
 		return -1;
 	}
 
+	if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
+		p_err("Another process running.\n");
+		close(fd);
+		return -1;
+	}
+
 	if (ftruncate(fd, 0) < 0) {
 		p_err("Cannot truncate pid file %s: %s\n",
 		    pid_file, strerror(errno));

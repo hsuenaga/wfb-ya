@@ -13,6 +13,28 @@
 
 #include "net_core.h"
 #include "util_msg.h"
+#include "wfb_params.h"
+
+static void
+netcore_term(evutil_socket_t s, short what, void *arg)
+{
+	struct netcore_context *ctx = (struct netcore_context *)arg;
+
+	assert(ctx);
+	p_info("Stopping services...\n");
+	event_base_loopexit(ctx->base, NULL);
+}
+
+static void
+netcore_hup(evutil_socket_t s, short what, void *arg)
+{
+	struct netcore_context *ctx = (struct netcore_context *)arg;
+
+	assert(ctx);
+
+	wfb_stats.sighup++;
+	ctx->reload = true;
+}
 
 static void
 netcore_wdt(evutil_socket_t s, short what, void *arg)
@@ -28,6 +50,7 @@ netcore_wdt(evutil_socket_t s, short what, void *arg)
 			if (hook->func(hook->arg) < 0)
 				error = true;
 		}
+		wfb_stats.reload++;
 	}
 
 	pthread_mutex_lock(&ctx->lock);
@@ -64,6 +87,27 @@ netcore_initialize(struct netcore_context *ctx)
 	ctx->wdt_to.tv_usec = 0;
 	evtimer_add(ctx->wdt, &ctx->wdt_to);
 
+	ctx->sighup = evsignal_new(ctx->base, SIGHUP, netcore_hup, ctx);
+	if (ctx->sighup == NULL) {
+		p_err("Failed to allocate signal event.\n");
+		return -1;
+	}
+	evsignal_add(ctx->sighup, NULL);
+
+	ctx->sigterm = evsignal_new(ctx->base, SIGTERM, netcore_term, ctx);
+	if (ctx->sigterm == NULL) {
+		p_err("Failed to allocate signal event.\n");
+		return -1;
+	}
+	evsignal_add(ctx->sigterm, NULL);
+
+	ctx->sigint = evsignal_new(ctx->base, SIGINT, netcore_term, ctx);
+	if (ctx->sigint == NULL) {
+		p_err("Failed to allocate signal event.\n");
+		return -1;
+	}
+	evsignal_add(ctx->sigint, NULL);
+
 	event_config_free(cfg);
 
 	return 0;
@@ -75,8 +119,33 @@ netcore_deinitialize(struct netcore_context *ctx)
 	assert(ctx);
 
 	netcore_thread_cancel(ctx);
-	event_base_free(ctx->base);
-	ctx->base = NULL;
+
+	// netcore thread is terminated and joined here.
+
+	if (ctx->wdt) {
+		event_del(ctx->wdt);
+		event_free(ctx->wdt);
+		ctx->wdt = NULL;
+	}
+	if (ctx->sighup) {
+		event_del(ctx->sighup);
+		event_free(ctx->sighup);
+		ctx->sighup = NULL;
+	}
+	if (ctx->sigint) {
+		event_del(ctx->sigint);
+		event_free(ctx->sigint);
+		ctx->sigint = NULL;
+	}
+	if (ctx->sigterm) {
+		event_del(ctx->sigterm);
+		event_free(ctx->sigterm);
+		ctx->sigterm = NULL;
+	}
+	if (ctx->base) {
+		event_base_free(ctx->base);
+		ctx->base = NULL;
+	}
 }
 
 struct event *
@@ -106,7 +175,9 @@ extern void
 netcore_rx_event_del(struct netcore_context *ctx, struct event *ev)
 {
 	pthread_mutex_lock(&ctx->lock);
-	(void)event_del(ev);
+	if (ctx->base) {
+		(void)event_del(ev);
+	}
 	pthread_mutex_unlock(&ctx->lock);
 
 	event_free(ev);
@@ -142,6 +213,13 @@ netcore_reload(struct netcore_context *ctx)
 	pthread_mutex_unlock(&ctx->lock);
 }
 
+extern void
+netcore_exit(struct netcore_context *ctx)
+{
+	p_info("Stopping services...\n");
+	event_base_loopexit(ctx->base, NULL);
+}
+
 static void
 thread_cleanup(void *arg)
 {
@@ -161,9 +239,15 @@ thread_main(void *arg)
 
 	event_base_dispatch(ctx->base);
 	// NOTE: events are not free()'ed yet.
+	pthread_mutex_lock(&ctx->lock);
+	ctx->cancel = true;
+	pthread_mutex_unlock(&ctx->lock);
 
 	pthread_cleanup_pop(1);
 
+	pthread_exit(arg);
+
+	// not reached
 	return NULL;
 }
 
@@ -186,11 +270,20 @@ netcore_thread_start(struct netcore_context *ctx)
 extern void
 netcore_thread_join(struct netcore_context *ctx)
 {
-	void *ret;
-
+	void *ret = NULL;
 	assert(ctx);
 
-	(void)pthread_join(ctx->tid, &ret);
+	pthread_mutex_lock(&ctx->lock);
+	if (!ctx->stopped) {
+		pthread_mutex_unlock(&ctx->lock);
+		(void)pthread_join(ctx->tid, &ret);
+		pthread_mutex_lock(&ctx->lock);
+		ctx->stopped = true;
+		if (ret == PTHREAD_CANCELED) {
+			p_info("netcore thread is canceled.\n");
+		}
+	}
+	pthread_mutex_unlock(&ctx->lock);
 }
 
 extern void
@@ -198,8 +291,15 @@ netcore_thread_cancel(struct netcore_context *ctx)
 {
 	assert(ctx);
 
-	if (pthread_cancel(ctx->tid) != 0)
-		return;
+	pthread_mutex_lock(&ctx->lock);
+	if (!ctx->cancel) {
+		pthread_mutex_unlock(&ctx->lock);
+		if (pthread_cancel(ctx->tid) != 0)
+			return;
+		pthread_mutex_lock(&ctx->lock);
+		ctx->cancel = true;
+	}
+	pthread_mutex_unlock(&ctx->lock);
 
 	return netcore_thread_join(ctx);
 }

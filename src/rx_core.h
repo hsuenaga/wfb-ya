@@ -81,7 +81,8 @@ rx_get_seq_outer(struct rx_context *ctx)
 	return seq;
 }
 
-extern int rx_context_init(struct rx_context *ctx, uint32_t channel_id);
+extern int rx_context_initialize(struct rx_context *ctx, uint32_t channel_id);
+extern void rx_context_deinitialize(struct rx_context *ctx);
 extern int rx_context_set_decode(struct rx_context *ctx,
     void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg);
 extern void rx_decode_frame(struct rx_context *ctx, uint8_t *data, size_t size);

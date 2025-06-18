@@ -26,6 +26,7 @@
 #include "rx_log.h"
 #include "crypto_wfb.h"
 #include "fec_wfb.h"
+#include "wfb_ipc.h"
 #ifdef ENABLE_GSTREAMER
 #include "decode_h265.h"
 #endif
@@ -36,7 +37,7 @@ struct wfb_opt wfb_options = {
 	.rx_wireless = DEF_WRX,
 	.tx_wired = DEF_ETX,
 	.rx_wired = DEF_ERX,
-	.key_file = DEF_KEY,
+	.key_file = DEF_KEY_FILE,
 	.mc_addr = WFB_ADDR6,
 	.mc_port = WFB_PORT,
 	.local_play = false,
@@ -44,8 +45,11 @@ struct wfb_opt wfb_options = {
 	.no_fec = false,
 	.log_file = NULL,
 	.pid_file = DEF_PID_FILE,
+	.ctrl_file = DEF_CTRL_FILE,
 	.debug = false
 };
+
+struct wfb_statistics wfb_stats;
 
 static void
 print_help(const char *path)
@@ -60,8 +64,9 @@ print_help(const char *path)
 	printf("Synopsis:\n");
 	printf("\t%s [-w <dev>] [-e <dev>] [-E <dev>]\n", name);
         printf("\t[-a <addr>] [-p <port>] [-k <file>]\n");
-	printf("\t[-P <pid_file>]\n");
-	printf("\t[-l] [-m] [-n] [-d] [-D] [-h]\n");
+	printf("\t[-P <pid_file>] [-S <ipc_socket>]\n");
+	printf("\t[-s <param>]\n");
+	printf("\t[-l] [-m] [-n] [-d] [-D] [-s] [-h]\n");
 	printf("Options:\n");
 	printf("\t-w <dev> ... specify Wireless Rx device. default: %s\n",
 	    DEF_WRX ? DEF_WRX : "none");
@@ -74,8 +79,10 @@ print_help(const char *path)
 	printf("\t-p <port> ... specify Multicast port . default: %u\n",
 	    WFB_PORT);
 	printf("\t-k <file> ... specify cipher key. default: %s\n",
-	    DEF_KEY ? DEF_KEY : "none");
+	    DEF_KEY_FILE ? DEF_KEY_FILE : "none");
 	printf("\t-P <pid_file> ... specify pid file(when -D). default: %s\n",
+	    DEF_PID_FILE ? DEF_PID_FILE : "none");
+	printf("\t-S <ipc_socket> ... specify IPC socket. default: %s\n",
 	    DEF_PID_FILE ? DEF_PID_FILE : "none");
 #ifdef ENABLE_GSTREAMER
 	printf("\t-l ... enable local play. default: disable\n");
@@ -85,10 +92,16 @@ print_help(const char *path)
 	printf("\t-n ... don't apply FEC decode.\n");
 	printf("\t-D ... run as daemon.\n");
 	printf("\t-K ... kill daemon.\n");
+	printf("\t-s <param> ... send query via IPC.\n");
 	printf("\t-d ... enable debug output.\n");
 	printf("\t-h ... print help(this).\n");
 	printf("\n");
-	printf("If tx device is not specified, the progaram decode the stream.\n");
+	printf("Queries(<param>):\n");
+	printf("\tping ... check liveness only\n");
+	printf("\tstat ... show internal counters\n");
+	printf("\texit ... exit process\n");
+	printf("\tquit ... exit process\n");
+	printf("\n");
 }
 
 static void
@@ -98,7 +111,7 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:L:P:DKlmndh")) != -1) {
+	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:L:P:S:s:DKlmndh")) != -1) {
 		long val;
 
 		switch (ch) {
@@ -145,6 +158,9 @@ parse_options(int *argc0, char **argv0[])
 			case 'P':
 				wfb_options.pid_file = optarg;
 				break;
+			case 'S':
+				wfb_options.ctrl_file = optarg;
+				break;
 			case 'L':
 				wfb_options.log_file = optarg;
 				break;
@@ -157,6 +173,9 @@ parse_options(int *argc0, char **argv0[])
 			case 'd':
 				wfb_options.debug = true;
 				break;
+			case 's':
+				wfb_options.query_param = optarg;
+				break;
 			case 'h':
 			case '?':
 			default:
@@ -168,6 +187,9 @@ parse_options(int *argc0, char **argv0[])
 	argv += optind;
 	*argc0 = argc;
 	*argv0 = argv;
+
+	if (wfb_options.query_param)
+		return;
 
 	if (!wfb_options.rx_wireless && !wfb_options.rx_wired) {
 		fprintf(stderr, "Please specify at least one Rx device.\n");
@@ -182,6 +204,7 @@ static int
 _main(int argc, char *argv[])
 {
 	struct netcore_context net_ctx;
+	struct ipc_rx_context ipc_ctx;
 	struct netpcap_context pcap_ctx;
 	struct netinet6_rx_context in6r_ctx;
 	struct netinet6_tx_context in6t_ctx;
@@ -200,6 +223,12 @@ _main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (wfb_options.query_param) {
+		if (ipc_tx(wfb_options.ctrl_file, wfb_options.query_param) < 0)
+			exit(0);
+		exit(1);
+	}
+
 	if (wfb_options.daemon) {
 		if (create_daemon(wfb_options.pid_file) < 0)
 			exit(0);
@@ -208,6 +237,12 @@ _main(int argc, char *argv[])
 	p_debug("Initalizing netcore.\n");
 	if (netcore_initialize(&net_ctx) < 0) {
 		p_err("Cannot Initialize netcore\n");
+		exit(0);
+	}
+
+	p_debug("Initializing IPC.\n");
+	if (ipc_rx_initialize(&ipc_ctx, &net_ctx, wfb_options.ctrl_file) < 0) {
+		p_err("Cannot Initialize IPC.\n");
 		exit(0);
 	}
 
@@ -224,7 +259,7 @@ _main(int argc, char *argv[])
 	}
 
 	p_debug("Initalizing rx parser.\n");
-	if (rx_context_init(&rx_ctx, wfb_ch) < 0) {
+	if (rx_context_initialize(&rx_ctx, wfb_ch) < 0) {
 		p_err("Cannot Initialize Rx.\n");
 		exit(0);
 	}
@@ -279,16 +314,28 @@ _main(int argc, char *argv[])
 		}
 	}
 
-	p_debug("Start thread.\n");
+	p_debug("Start netcore thread.\n");
 	netcore_thread_start(&net_ctx);
-	p_debug("Wainting for thread complete.\n");
+	p_debug("Waiting for netcore thread complete.\n");
 	netcore_thread_join(&net_ctx);
+	p_debug("netcore thread completed.\n");
 
-	netcore_deinitialize(&net_ctx);
-	netpcap_deinitialize(&pcap_ctx);
+	if (wfb_options.local_play) {
+		p_debug("Waiting for local_play thread complete.\n");
+		decode_h265_thread_join(&d_ctx);
+		p_debug("local_play thread completed.\n");
+	}
+
 	if (wfb_options.rx_wired) {
 		netinet6_rx_deinitialize(&in6r_ctx);
 	}
+	if (wfb_options.rx_wireless) {
+		netpcap_deinitialize(&pcap_ctx);
+	}
+	p_debug("Deinitalizing rx parser.\n");
+	rx_context_deinitialize(&rx_ctx);
+	p_debug("Deinitalizing netcore.\n");
+	netcore_deinitialize(&net_ctx);
 
 	// XXX: more cleanup
 	exit(1);

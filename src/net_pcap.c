@@ -180,8 +180,7 @@ netpcap_deinitialize(struct netpcap_context *ctx)
 	assert(ctx);
 
 	if (ctx->ev) {
-		event_del(ctx->ev);
-		event_free(ctx->ev);
+		netcore_rx_event_del(ctx->net_ctx, ctx->ev);
 		ctx->ev = NULL;
 	}
 	if (ctx->pcap) {
