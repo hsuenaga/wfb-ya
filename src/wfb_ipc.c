@@ -83,7 +83,12 @@ ipc_dump(struct ipc_msg *msg)
 			return 0;
 		case WFB_IPC_STAT:
 			return ipc_dump_stat(&msg->u.stat);
-			break;
+		case WFB_IPC_FEC_GET:
+			/* fallthrough */
+		case WFB_IPC_FEC_TOGGLE:
+			p_info("FEC is %s.\n",
+				msg->u.value_b ? "disabled" : "enabled");
+			return 0;
 		default:
 			break;
 	}
@@ -376,14 +381,26 @@ ipc_rx(evutil_socket_t fd, short event, void *arg)
 			ipc_rx_reply(s, &msg, true);
 			netcore_exit(net_ctx);
 			break;
+		case WFB_IPC_FEC_TOGGLE:
+			p_info("Got FEC_TOGGLE.\n");
+			wfb_options.no_fec = !wfb_options.no_fec;
+			msg.u.value_b = wfb_options.no_fec;
+			ipc_rx_reply(s, &msg, true);
+			break;
+		case WFB_IPC_FEC_GET:
+			p_info("Got FEC_GET.\n");
+			msg.u.value_b = wfb_options.no_fec;
+			ipc_rx_reply(s, &msg, true);
+			break;
 		case WFB_IPC_OK:
 		case WFB_IPC_ERR:
 		default:
+			snprintf(msg.u.string, sizeof(msg.u.string),
+			    "Invalid IPC query(%u).\n", msg.query);
 			ipc_rx_reply(s, &msg, false);
 			p_err("Invalid IPC message.\n");
 			break;
 	}
-
 
 	close(s);
 	return;
@@ -430,6 +447,12 @@ ipc_tx(const char *path, const char *param)
 	else if (strcasecmp("quit", param) == 0) {
 		msg.query = WFB_IPC_EXIT;
 	}
+	else if (strcasecmp("fec", param) == 0) {
+		msg.query = WFB_IPC_FEC_GET;
+	}
+	else if (strcasecmp("fec_toggle", param) == 0) {
+		msg.query = WFB_IPC_FEC_TOGGLE;
+	}
 	else {
 		p_err("Invalid argument: %s.\n", param);
 		return -1;
@@ -446,12 +469,12 @@ ipc_tx(const char *path, const char *param)
 	}
 
 	if (ipc_tx_recv_response(s, &msg) < 0) {
-		p_info("IPC failure.\n");
+		p_info("IPC failure: %s.\n", msg.u.string);
 		close(s);
 		return -1;
 	}
 
-	p_info("IPC success.\n");
+	p_debug("IPC success.\n");
 	ipc_dump(&msg);
 
 	close(s);

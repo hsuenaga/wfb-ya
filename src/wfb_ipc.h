@@ -19,6 +19,9 @@ enum ipc_msg_type {
 	WFB_IPC_PING = 3,
 	WFB_IPC_STAT = 4,
 	WFB_IPC_EXIT = 5,
+	WFB_IPC_FEC_SET = 6,
+	WFB_IPC_FEC_GET = 7,
+	WFB_IPC_FEC_TOGGLE = 8,
 };
 
 struct ipc_msg {
@@ -30,6 +33,7 @@ struct ipc_msg {
 	union {
 		char string[IPC_MSG_LEN];
 		struct wfb_statistics stat;
+		bool value_b;
 	} u;
 };
 
