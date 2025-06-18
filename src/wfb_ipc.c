@@ -80,10 +80,12 @@ ipc_dump(struct ipc_msg *msg)
 
 	switch (msg->query) {
 		case WFB_IPC_PING:
+		case WFB_IPC_EXIT:
 			return 0;
 		case WFB_IPC_STAT:
 			return ipc_dump_stat(&msg->u.stat);
 		case WFB_IPC_FEC_GET:
+		case WFB_IPC_FEC_SET:
 			/* fallthrough */
 		case WFB_IPC_FEC_TOGGLE:
 			p_info("FEC is %s.\n",
@@ -368,27 +370,27 @@ ipc_rx(evutil_socket_t fd, short event, void *arg)
 
 	switch (msg.query) {
 		case WFB_IPC_PING:
-			p_info("Got PING.\n");
+			p_info("Execute IPC PING.\n");
 			ipc_rx_reply(s, &msg, true);
 			break;
 		case WFB_IPC_STAT:
-			p_info("Got STAT.\n");
+			p_info("Execute IPC STAT.\n");
 			msg.u.stat = wfb_stats;
 			ipc_rx_reply(s, &msg, true);
 			break;
 		case WFB_IPC_EXIT:
-			p_info("Got EXIT.\n");
+			p_info("Execute IPC EXIT.\n");
 			ipc_rx_reply(s, &msg, true);
 			netcore_exit(net_ctx);
 			break;
 		case WFB_IPC_FEC_TOGGLE:
-			p_info("Got FEC_TOGGLE.\n");
+			p_info("Execute IPC FEC_TOGGLE.\n");
 			wfb_options.no_fec = !wfb_options.no_fec;
 			msg.u.value_b = wfb_options.no_fec;
 			ipc_rx_reply(s, &msg, true);
 			break;
 		case WFB_IPC_FEC_GET:
-			p_info("Got FEC_GET.\n");
+			p_info("Execute IPC FEC_GET.\n");
 			msg.u.value_b = wfb_options.no_fec;
 			ipc_rx_reply(s, &msg, true);
 			break;

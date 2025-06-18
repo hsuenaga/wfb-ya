@@ -15,6 +15,15 @@
 
 #include "util_msg.h"
 
+const char *last_pid_file;
+
+static void
+cleanup_pid(void)
+{
+	if (last_pid_file)
+		(void)unlink(last_pid_file);
+}
+
 static pid_t
 read_pid(int fd)
 {
@@ -150,6 +159,8 @@ create_pid_file(const char *pid_file)
 	}
 
 	close(fd);
+
+	last_pid_file = pid_file;
 	return 0;
 
 }
@@ -170,6 +181,9 @@ create_daemon(const char *pid_file)
 	}
 
 	if (create_pid_file(pid_file) < 0)
+		return -1;
+
+	if (atexit(cleanup_pid) < 0)
 		return -1;
 
 	if (setpgid(0, 0) < 0) {

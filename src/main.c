@@ -238,6 +238,8 @@ parse_options(int *argc0, char **argv0[])
 
 	if (wfb_options.query_param)
 		return;
+	if (wfb_options.kill_daemon)
+		return;
 
 	if (!wfb_options.rx_wireless && !wfb_options.rx_wired) {
 		fprintf(stderr, "Please specify at least one Rx device.\n");
