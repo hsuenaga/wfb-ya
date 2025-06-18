@@ -253,12 +253,12 @@ ipc_rx_socket(const char *path)
 	(void)unlink(path);
 
 	if (bind(s, (struct sockaddr *)&sun, sizeof(sun)) < 0) {
-		p_err("bind() failed: %s.\n", strerror(errno));
+		p_err("bind(%s) failed: %s.\n", path, strerror(errno));
 		return -1;
 	}
 
 	if (listen(s, 1) < 0) {
-		p_err("listen() failed: %s.\n", strerror(errno));
+		p_err("listen(%s) failed: %s.\n", path, strerror(errno));
 		return -1;
 	}
 
@@ -310,7 +310,7 @@ ipc_tx_socket(const char *path)
 		return -1;
 
 	if (connect(s, (struct sockaddr *)&sun, sizeof(sun)) < 0) {
-		p_err("connect() failed: %s.\n", strerror(errno));
+		p_err("connect(%s) failed: %s.\n", path, strerror(errno));
 		return -1;
 	}
 

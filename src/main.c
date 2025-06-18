@@ -83,7 +83,7 @@ print_help(const char *path)
 	printf("\t-P <pid_file> ... specify pid file(when -D). default: %s\n",
 	    DEF_PID_FILE ? DEF_PID_FILE : "none");
 	printf("\t-S <ipc_socket> ... specify IPC socket. default: %s\n",
-	    DEF_PID_FILE ? DEF_PID_FILE : "none");
+	    DEF_CTRL_FILE ? DEF_CTRL_FILE : "none");
 #ifdef ENABLE_GSTREAMER
 	printf("\t-l ... enable local play. default: disable\n");
 #endif
@@ -102,6 +102,54 @@ print_help(const char *path)
 	printf("\texit ... exit process\n");
 	printf("\tquit ... exit process\n");
 	printf("\n");
+}
+
+static void
+load_environment(void)
+{
+	char *v;
+
+	v = getenv("WFB_IPC_PATH");
+	if (v) {
+		wfb_options.ctrl_file = v;
+	}
+	v = getenv("WFB_PID_PATH");
+	if (v) {
+		wfb_options.pid_file = v;
+	}
+	v = getenv("WFB_KEY_PATH");
+	if (v) {
+		wfb_options.key_file = v;
+	}
+	v = getenv("WFB_RX_WIRED");
+	if (v) {
+		wfb_options.rx_wired = v;
+	}
+	v = getenv("WFB_TX_WIRED");
+	if (v) {
+		wfb_options.tx_wired = v;
+	}
+	v = getenv("WFB_RX_WIRELESS");
+	if (v) {
+		wfb_options.rx_wireless = v;
+	}
+
+	v = getenv("WFB_MULTICAST");
+	if (v) {
+		wfb_options.mc_addr = v;
+	}
+	v = getenv("WFB_PORT");
+	if (v) {
+		long val;
+
+		val = strtol(v, NULL, 10);
+		if (val <= 0 || val > 0xffff) {
+			fprintf(stderr, "Invalid Port %s in WFB_PORT.\n", v);
+		}
+		else {
+			wfb_options.mc_port = (uint16_t)val;
+		}
+	}
 }
 
 static void
@@ -215,6 +263,7 @@ _main(int argc, char *argv[])
 	uint32_t wfb_ch = 0;
 	int fd;
 
+	load_environment();
 	parse_options(&argc, &argv);
 
 	if (wfb_options.kill_daemon) {
