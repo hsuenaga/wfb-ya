@@ -371,11 +371,13 @@ _main(int argc, char *argv[])
 	netcore_thread_join(&net_ctx);
 	p_debug("netcore thread completed.\n");
 
+#ifdef ENABLE_GSTREAMER
 	if (wfb_options.local_play) {
 		p_debug("Waiting for local_play thread complete.\n");
 		decode_h265_thread_join(&d_ctx);
 		p_debug("local_play thread completed.\n");
 	}
+#endif
 
 	if (wfb_options.rx_wired) {
 		netinet6_rx_deinitialize(&in6r_ctx);

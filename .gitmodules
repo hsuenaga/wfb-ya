@@ -4,3 +4,6 @@
 [submodule "external/zfec"]
 	path = external/zfec
 	url = https://github.com/tahoe-lafs/zfec.git
+[submodule "external/yyjson"]
+	path = external/yyjson
+	url = https://github.com/ibireme/yyjson.git
