@@ -33,6 +33,9 @@ set (ZFEC_DIR "${CMAKE_SOURCE_DIR}/external/zfec/zfec")
 set (ZFEC_INCLUDE_DIRS "${ZFEC_DIR}")
 set (ZFEC_SOURCES "${ZFEC_DIR}/fec.c")
 
+## External module yyjson
+set (YYJSON_DIR "${CMAKE_SOURCE_DIR}/external/yyjson")
+add_subdirectory(${YYJSON_DIR})
 
 ## Thread
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -189,6 +192,10 @@ target_link_directories(wfb_log_analysis PUBLIC
 
 target_link_libraries(wfb_log_analysis PUBLIC
 	${wfb_log_analysis_libs}
+)
+
+target_link_libraries(wfb_log_analysis PRIVATE
+	yyjson
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
