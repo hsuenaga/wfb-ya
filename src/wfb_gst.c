@@ -264,11 +264,11 @@ wfb_gst_init_source(struct wfb_gst_context *ctx)
 }
 
 int
-wfb_gst_init_codec(struct wfb_gst_context *ctx, const char *file)
+wfb_gst_init_codec(struct wfb_gst_context *ctx, const char *file, bool enc)
 {
 	assert(ctx);
 
-	if (file) {
+	if (file && !enc) {
 		ctx->h265 = gst_element_factory_make("h265parse", "h265");
 		if (!ctx->h265) {
 			p_err("Cannot find H.265 parser.\n");
@@ -304,7 +304,7 @@ wfb_gst_init_codec(struct wfb_gst_context *ctx, const char *file)
 }
 
 int
-wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file)
+wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file, bool enc)
 {
 	GstStateChangeReturn ret;
 
@@ -334,7 +334,7 @@ wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file)
 	ctx->rtp = gst_element_factory_make("rtph265depay", "rtp");
 	g_object_set(ctx->rtp, "auto-header-extension", TRUE, NULL);
 
-	if (wfb_gst_init_codec(ctx, file) < 0) {
+	if (wfb_gst_init_codec(ctx, file, enc) < 0) {
 		p_err("failed to initialize gst codec element.\n");
 		return -1;
 	}
@@ -342,8 +342,14 @@ wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file)
 	/* Sink queue: writing file or playing movie thread */
 	ctx->sink_queue = gst_element_factory_make("queue", "sink_queue");
 
-	if (file) {
+	if (file && !enc) {
 		ctx->conv = gst_element_factory_make("h265timestamper", "conv");
+		ctx->mux = gst_element_factory_make("qtmux", "mux");
+		ctx->sink = gst_element_factory_make("filesink", "sink");
+		g_object_set(ctx->sink, "location", file, NULL);
+	}
+	else if (file && enc) {
+		ctx->conv = gst_element_factory_make("x264enc", "conv");
 		ctx->mux = gst_element_factory_make("qtmux", "mux");
 		ctx->sink = gst_element_factory_make("filesink", "sink");
 		g_object_set(ctx->sink, "location", file, NULL);

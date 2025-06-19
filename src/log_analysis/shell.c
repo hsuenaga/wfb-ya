@@ -278,6 +278,24 @@ shell_write_mp4(struct shell_context *ctx, struct shell_token *token)
 }
 
 static int
+shell_write_mp4_enc(struct shell_context *ctx, struct shell_token *token)
+{
+	token_next(token);
+	if (token->cur == NULL) {
+		p_info("Missing argument\n");
+		p_info("%s <file_name>\n", expand_token(token));
+		return -1;
+	}
+	if (!ctx->ls) {
+		p_info("No file loaded.\n");
+		return -1;
+	}
+	p_info("Re-encoding and Write to %s\n", token->cur);
+	write_mp4_enc(token->cur, ctx->ls);
+	return 0;
+}
+
+static int
 shell_play(struct shell_context *ctx, struct shell_token *token)
 {
 	if (!ctx->ls) {
@@ -374,6 +392,7 @@ static struct shell_cmd_def write_cmds[] = {
 	{ "json_block", NULL, shell_write_json_block },
 #ifdef ENABLE_GSTREAMER
 	{ "mp4", NULL, shell_write_mp4 },
+	{ "mp4enc", NULL, shell_write_mp4_enc },
 #endif
 	{NULL, NULL, NULL}
 };

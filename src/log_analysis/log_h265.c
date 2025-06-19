@@ -24,7 +24,7 @@ init_player(struct wfb_gst_context *ctx)
 
 	if (ctx->initialized)
 		return;
-	wfb_gst_context_init(ctx, NULL);
+	wfb_gst_context_init(ctx, NULL, false);
 	wfb_gst_thread_start(ctx);
 }
 
@@ -74,14 +74,42 @@ write_mp4(const char *file, struct log_store *ls)
 		exit(0);
 	}
 
-	wfb_gst_context_init(&ctx, file);
+	wfb_gst_context_init(&ctx, file, false);
 	wfb_gst_thread_start(&ctx);
 
-	clock_gettime(CLOCK_MONOTONIC, &epoch);
-	timespecclear(&elapsed);
 	TAILQ_FOREACH(kv, &ls->kvh, chain) {
 		TAILQ_FOREACH(v, &kv->vh, chain) {
-			if (v->size == 0)
+			if (v->type != FRAME_TYPE_DECODE)
+				continue;
+			if (v->filtered)
+				continue;
+			wfb_gst_write(&v->ts, v->buf, v->size, &ctx);
+		}
+	}
+	wfb_gst_eos(&ctx);
+}
+
+void
+write_mp4_enc(const char *file, struct log_store *ls)
+{
+	struct wfb_gst_context ctx;
+	struct timespec epoch, elapsed;
+	struct log_data_kv *kv;
+	struct log_data_v *v;
+
+	if (file == NULL) {
+		p_err("Please specify output file name.\n");
+		exit(0);
+	}
+
+	wfb_gst_context_init(&ctx, file, true);
+	wfb_gst_thread_start(&ctx);
+
+	TAILQ_FOREACH(kv, &ls->kvh, chain) {
+		TAILQ_FOREACH(v, &kv->vh, chain) {
+			if (v->type != FRAME_TYPE_DECODE)
+				continue;
+			if (v->filtered)
 				continue;
 			wfb_gst_write(&v->ts, v->buf, v->size, &ctx);
 		}

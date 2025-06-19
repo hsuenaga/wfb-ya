@@ -28,9 +28,11 @@ struct wfb_gst_context {
 	GstElement *sink_queue;
 	GstElement *mux;
 	GstElement *sink;
+	GstElement *enc;
 };
 
-extern int wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file);
+extern int wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file,
+    bool enc);
 extern void wfb_gst_context_deinit(struct wfb_gst_context *ctx);
 extern int wfb_gst_thread_start(struct wfb_gst_context *ctx);
 extern int wfb_gst_thread_join(struct wfb_gst_context *ctx);
