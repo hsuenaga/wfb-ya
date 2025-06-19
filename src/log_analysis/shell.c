@@ -11,6 +11,8 @@
 #include "log_csv.h"
 #include "log_summary.h"
 #include "log_message.h"
+#include "log_hist.h"
+#include "log_filter.h"
 #ifdef ENABLE_GSTREAMER
 #include "log_h265.h"
 #endif
@@ -118,6 +120,59 @@ shell_show_message(struct shell_context *ctx, struct shell_token *token)
 	}
 
 	dump_message(ctx->fp_out, ctx->ls);
+
+	return 0;
+}
+
+static int
+shell_show_hist(struct shell_context *ctx, struct shell_token *token)
+{
+	if (!ctx->ls) {
+		p_info("No file loaded.\n");
+		return -1;
+	}
+
+	log_hist(ctx->ls);
+
+	return 0;
+}
+
+static int
+shell_filter_dbm(struct shell_context *ctx, struct shell_token *token)
+{
+	char *endptr;
+	long dbm;
+	int nfec;
+
+	token_next(token);
+
+	if (token->cur == NULL || token->cur[0] == '\0') {
+		p_info("Missing argument\n");
+		p_info("%s <dbm>\n", expand_token(token));
+		return -1;
+	}
+	if (!ctx->ls) {
+		p_info("No file loaded.\n");
+		return -1;
+	}
+	dbm = strtol(token->cur, &endptr, 10);
+	if (*endptr != '\0') {
+		p_info("Invalid argument %s.\n", token->cur);
+		return -1;
+	}
+	if (dbm < INT8_MIN || dbm > INT8_MAX) {
+		p_info("dbm out of range.\n");
+		return -1;
+	}
+
+	if (log_filter_reset(ctx->ls) < 0) {
+		p_info("filter reset failed.\n");
+		return -1;
+	}
+	if (log_filter_dbm(ctx->ls, dbm) < 0) {
+		p_info("filter failed.\n");
+		return -1;
+	}
 
 	return 0;
 }
@@ -332,6 +387,7 @@ static struct shell_cmd_def show_cmds[] = {
 	{ "json", NULL, shell_show_json },
 	{ "json_block", NULL, shell_show_json_block },
 	{ "message", NULL, shell_show_message },
+	{ "hist", NULL, shell_show_hist },
 	{NULL, NULL, NULL}
 };
 
@@ -339,10 +395,20 @@ static struct shell_cmd_tree show_tree = {
 	.cmds = show_cmds
 };
 
+static struct shell_cmd_def filter_cmds[] = {
+	{ "dbm", NULL, shell_filter_dbm },
+	{NULL, NULL, NULL}
+};
+
+static struct shell_cmd_tree filter_tree = {
+	.cmds = filter_cmds
+};
+
 static struct shell_cmd_def top_level[] = {
 	{ "ls", NULL, shell_ls },
 	{ "write", &write_tree, NULL},
 	{ "show", &show_tree, NULL},
+	{ "filter", &filter_tree, NULL},
 #ifdef ENABLE_GSTREAMER
 	{ "play", NULL, shell_play },
 #endif

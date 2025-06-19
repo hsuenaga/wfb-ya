@@ -5,6 +5,7 @@
 #include <sys/queue.h>
 #include <sys/time.h>
 
+#include "../rx_log.h"
 #include "../compat.h"
 #include "../util_msg.h"
 #include "../wfb_gst.h"
@@ -40,9 +41,21 @@ play_h265(struct log_store *ls)
 	timespecclear(&elapsed);
 	TAILQ_FOREACH(kv, &ls->kvh, chain) {
 		TAILQ_FOREACH(v, &kv->vh, chain) {
-			if (v->size == 0)
+			if (v->type != FRAME_TYPE_DECODE)
 				continue;
-			wfb_gst_write(&v->ts, v->buf, v->size, &player_ctx);
+			if (v->filtered)
+				continue;
+			for (;;) {
+				clock_gettime(CLOCK_MONOTONIC, &elapsed);
+				timespecsub(&elapsed, &epoch, &elapsed);
+				if (timespeccmp(&elapsed, &v->ts, <)) {
+					usleep(1);
+					continue;
+				}
+				wfb_gst_write(&v->ts,
+				    v->buf, v->size, &player_ctx);
+				break;
+			}
 		}
 	}
 	wfb_gst_eos(&player_ctx);

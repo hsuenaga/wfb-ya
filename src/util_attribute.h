@@ -7,5 +7,8 @@
 #ifndef __printflike
 #define __printflike(x, y) __attribute__((format(printf, (x), (y))))
 #endif
+#ifndef __unused
+#define __unused __attribute__((unused))
+#endif
 
 #endif /* __UTIL_ATTRIBUTE_H__ */

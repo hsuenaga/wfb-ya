@@ -43,6 +43,7 @@ struct log_data_v {
 	bool corrupt;
 	bool is_parity;
 	void *buf;
+	bool filtered;
 
 	struct log_data_kv *kv;
 	TAILQ_ENTRY(log_data_v) chain;

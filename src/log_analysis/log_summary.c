@@ -30,6 +30,7 @@ summary_output(FILE *fp, struct log_store *ls)
 	if (fp == NULL)
 		fp = stdout;
 
+	fprintf(fp, "---ORIGINAL DATA---\n");
 	fprintf(fp, "Channel ID: %u\n", ls->channel_id);
 	fprintf(fp, "FEC_TYPE: %s\n", s_fectype(ls->fec_type));
 	fprintf(fp, "FEC_K: %u\n", ls->fec_k);
@@ -44,6 +45,7 @@ summary_output(FILE *fp, struct log_store *ls)
 	fprintf(fp, "minimum frame size: %u\n", ls->min_frame_size);
 	fprintf(fp, "Total H.265 bytes: %" PRIu64 "\n", ls->total_bytes);
 
+	fprintf(fp, "---AFTER FILTER---\n");
 	TAILQ_FOREACH(kv, &ls->kvh, chain) {
 		if (!kv->has_fec_frame)
 			continue;
