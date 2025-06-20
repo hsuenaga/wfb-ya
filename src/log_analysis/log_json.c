@@ -8,6 +8,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <yyjson.h>
+
 #include "../util_attribute.h"
 #include "../compat.h"
 
@@ -17,329 +19,219 @@
 #include "log_csv.h"
 #include "log_json.h"
 
-const char *json_keys[] = {
-	"Key",
-	"TimeStamp",
-	"BlockIndex",
-	"FragmentIndex",
-	"SourceNode",
-	"Frequency",
-	"dbm",
-	"DataSize",
-	"IsFEC",
-	"Type",
-	"EthernetFrames",
-	"H265Frames",
-	"IsParity",
-	"HasLostFrame",
-};
-
-static void __fprintf
-fprintfq(FILE *fp, const char *fmt, ...)
+static const char *
+s_v_type(struct log_data_v *v)
 {
-	va_list ap;
+	assert(v);
 
-	assert(fp);
-	assert(fmt);
-
-	va_start(ap, fmt);
-	fprintf(fp, "\"");
-	vfprintf(fp, fmt, ap);
-	fprintf(fp, "\"");
-	va_end(ap);
-}
-
-static void
-vfprintfq(FILE *fp, const char *fmt, va_list ap)
-{
-	assert(fp);
-	assert(fmt);
-
-	fprintf(fp, "\"");
-	vfprintf(fp, fmt, ap);
-	fprintf(fp, "\"");
-}
-
-static void __printflike(3, 4)
-fprintfkv(FILE *fp, enum json_keys_enum k, const char *fmt, ...)
-{
-	va_list ap;
-
-	assert(fp);
-	assert(fmt);
-
-	va_start(ap, fmt);
-	fprintfq(fp, "%s", json_keys[k]);
-	fprintf(fp, ":");
-	switch (k) {
-		case KEY_SQ:
-		case KEY_TS:
-		case KEY_BI:
-		case KEY_FI:
-		case KEY_FQ:
-		case KEY_DB:
-		case KEY_DS:
-			/* treat as integer */
-			vfprintf(fp, fmt, ap);
-			break;
-		case KEY_IS_FEC:
-		case KEY_IS_PARITY:
-		case KEY_IS_LOST:
-			/* treat as boolean */
-			vfprintf(fp, fmt, ap);
-			break;
-		default:
-			/* treat as string */
-			vfprintfq(fp, fmt, ap);
-			break;
-	}
-}
-
-static void
-obj_start(FILE *fp, const char *name)
-{
-	assert(fp);
-
-	if (name) {
-		fprintfq(fp, "%s", name);
-		fprintf(fp, ":");
-	}
-	fprintf(fp, "{");
-}
-
-static void
-obj_end(FILE *fp)
-{
-	assert(fp);
-
-	fprintf(fp, "}");
-}
-
-static void
-array_start(FILE *fp, const char *name)
-{
-	assert(fp);
-
-	if (name) {
-		fprintfq(fp, "%s", name);
-		fprintf(fp, ":");
-	}
-
-	fprintf(fp, "[");
-}
-
-static void
-array_end(FILE *fp)
-{
-	assert(fp);
-
-	fprintf(fp, "]");
-}
-
-static void
-add_sep(FILE *fp)
-{
-	assert(fp);
-
-	fprintf(fp, ",");
-}
-
-static void
-add_nl(FILE *fp)
-{
-	assert(fp);
-
-	fprintf(fp, "\n");
-}
-
-static int
-json_serialize_v(FILE *fp, struct log_data_kv *kv, struct log_data_v *v)
-{
-	char s_addr[INET6_ADDRSTRLEN] = {'\0'};
-	const char *s_type;
-	bool has_addr = false;
-	int i;
-
-	assert(fp);
-
-	if (v->rx_src.sin6_family == AF_INET6) {
-		inet_ntop(AF_INET6,
-		    &v->rx_src.sin6_addr, s_addr, sizeof(s_addr));
-		has_addr = true;
-	}
-
-	obj_start(fp, NULL);
-
-	/* timestamp */
-        fprintfkv(fp, KEY_TS, "%ld.%09ld", v->ts.tv_sec, v->ts.tv_nsec);
-
-	/* block index and fragment index */
-	if (kv->type == KV_TYPE_BLK) {
-		add_sep(fp);
-		fprintfkv(fp, KEY_BI, "%" PRIu64 "", v->block_idx);
-		add_sep(fp);
-		fprintfkv(fp, KEY_FI, "%" PRIu64 "", v->fragment_idx);
-		if (v->type == FRAME_TYPE_INET6) {
-			add_sep(fp);
-			fprintfkv(fp, KEY_IS_PARITY, "%s",
-			    v->is_parity ? "true" : "false");
-		}
-	}
-
-	/* event type */
 	switch (v->type) {
 	case FRAME_TYPE_CORRUPT:
-		s_type = "Corrupt";
-		break;
+		return "Corrupt";
 	case FRAME_TYPE_INET6:
-		s_type = "Receive";
-		break;
+		return "Receive";
 	case FRAME_TYPE_DECODE:
-		s_type = "Decode";
-		break;
+		return "Decode";
 	default:
-		s_type = "Unknown";
 		break;
 	}
-	add_sep(fp);
-	fprintfkv(fp, KEY_TYPE, "%s", s_type);
 
-	/* address */
-	if (s_addr[0] != '\0') {
-		add_sep(fp);
-		fprintfkv(fp, KEY_SN, "%s", s_addr);
-	}
-
-	/* frequency */
-	if (v->freq > 0) {
-		add_sep(fp);
-		fprintfkv(fp, KEY_FQ, "%u", v->freq);
-	}
-
-	/* dbm */
-	if (v->dbm >= DBM_MIN && v->dbm <= DBM_MAX) {
-		add_sep(fp);
-		fprintfkv(fp, KEY_DB, "%d", v->dbm);
-	}
-
-	/* size */
-	if (v->size > 0) {
-		add_sep(fp);
-		fprintfkv(fp, KEY_DS, "%u", v->size);
-	}
-
-	obj_end(fp);
-
-	return 0;
+	return "Unknown";
 }
 
-static int
-json_serialize_event(FILE *fp, struct log_data_kv *kv)
+static const char *
+s_source(struct log_data_v *v)
 {
-	struct log_data_v *v;
-	bool first_v = true;
+	static char s_addr[INET6_ADDRSTRLEN];
 
-	array_start(fp, "Event"); 
+	assert(v);
 
-	if (kv->type == KV_TYPE_BLK) {
-		TAILQ_FOREACH(v, &kv->vh, block_chain) {
-			if (!first_v) {
-				add_sep(fp);
-				add_nl(fp);
-			}
-			first_v = false;
-			json_serialize_v(fp, kv, v);
-		}
+	if (v->rx_src.sin6_family == AF_INET6) {
+		s_addr[0] = '\0';
+		inet_ntop(AF_INET6,
+		    &v->rx_src.sin6_addr, s_addr, sizeof(s_addr));
 	}
 	else {
-		TAILQ_FOREACH(v, &kv->vh, chain) {
-			if (!first_v) {
-				add_sep(fp);
-				add_nl(fp);
-			}
-			first_v = false;
-			json_serialize_v(fp, kv, v);
-		}
+		return NULL;
 	}
 
-	array_end(fp);
+	return s_addr;
+}
 
-	return 0;
+static float
+f_timestamp(struct log_data_v *v)
+{
+	uint64_t nsec;
+	float fsec;
+
+	nsec = v->ts.tv_sec * 1000 * 1000 * 1000;
+	nsec += v->ts.tv_nsec;
+
+	fsec = ((float)nsec / (1000.0 * 1000.0 * 1000.0));
+
+	return fsec;
+}
+
+static yyjson_mut_val *
+wfb_mut_obj_kv_seq(struct yyjson_mut_doc *doc, struct log_data_kv *kv)
+{
+	struct log_data_v *v;
+	yyjson_mut_val *kvj;
+	yyjson_mut_val *vj;
+	yyjson_mut_val *evj;
+	const char *s;
+
+	assert(doc);
+	assert(kv);
+
+	v = TAILQ_FIRST(&kv->vh);
+	if (!v)
+		return NULL;
+
+	kvj = yyjson_mut_obj(doc);
+	evj = yyjson_mut_arr(doc);
+
+	yyjson_mut_obj_add_uint(doc, kvj, "Key", kv->key);
+	yyjson_mut_obj_add_uint(doc, kvj, "BlockIndex", v->block_idx);
+	yyjson_mut_obj_add_uint(doc, kvj, "FragmentIndex", v->fragment_idx);
+	yyjson_mut_obj_add_bool(doc, kvj, "IsParity", v->is_parity);
+	yyjson_mut_obj_add_bool(doc, kvj, "IsFEC", kv->has_fec_frame);
+	yyjson_mut_obj_add_uint(doc, kvj, "EthernetFrames",
+	    kv->n_ethernet_frame);
+	yyjson_mut_obj_add_uint(doc, kvj, "H265Frames", kv->n_h265_frame);
+	TAILQ_FOREACH(v, &kv->vh, chain) {
+		vj = yyjson_mut_obj(doc);
+
+		yyjson_mut_obj_add_float(doc, vj, "TimeStamp", f_timestamp(v));
+		yyjson_mut_obj_add_str(doc, vj, "Type", s_v_type(v));
+		s = s_source(v);
+		if (s) {
+			yyjson_mut_obj_add_str(doc, vj, "SourceNode", s);
+		}
+		if (v->freq > 0) {
+			yyjson_mut_obj_add_uint(doc, vj, "SourceNode", v->freq);
+		}
+		if (v->dbm >= DBM_MIN && v->dbm <= DBM_MAX) {
+			yyjson_mut_obj_add_int(doc, vj, "dbm", v->dbm);
+		}
+		if (v->size > 0) {
+			yyjson_mut_obj_add_uint(doc, vj, "DataSize", v->size);
+		}
+
+		yyjson_mut_arr_append(evj, vj);
+	}
+	yyjson_mut_obj_add_val(doc, kvj, "Event", evj);
+
+	return kvj;
+}
+
+static yyjson_mut_val *
+wfb_mut_obj_kv_blk(struct yyjson_mut_doc *doc, struct log_data_kv *kv)
+{
+	struct log_data_v *v;
+	yyjson_mut_val *kvj;
+	yyjson_mut_val *vj;
+	yyjson_mut_val *evj;
+	const char *s;
+
+	assert(doc);
+	assert(kv);
+
+	v = TAILQ_FIRST(&kv->vh);
+	if (!v)
+		return NULL;
+
+	kvj = yyjson_mut_obj(doc);
+	evj = yyjson_mut_arr(doc);
+
+	yyjson_mut_obj_add_uint(doc, kvj, "Key", kv->key);
+	yyjson_mut_obj_add_bool(doc, kvj, "HasLostFrame", kv->has_lost_frame);
+	yyjson_mut_obj_add_bool(doc, kvj, "IsFEC", kv->has_fec_frame);
+	yyjson_mut_obj_add_uint(doc, kvj, "EthernetFrames",
+	    kv->n_ethernet_frame);
+	yyjson_mut_obj_add_uint(doc, kvj, "H265Frames", kv->n_h265_frame);
+	TAILQ_FOREACH(v, &kv->vh, block_chain) {
+		vj = yyjson_mut_obj(doc);
+		yyjson_mut_obj_add_float(doc, vj, "TimeStamp", f_timestamp(v));
+		yyjson_mut_obj_add_uint(doc, vj, "BlockIndex", v->block_idx);
+		yyjson_mut_obj_add_uint(doc, vj, "FragmentIndex",
+		    v->fragment_idx);
+		yyjson_mut_obj_add_str(doc, vj, "Type", s_v_type(v));
+		s = s_source(v);
+		if (s) {
+			yyjson_mut_obj_add_str(doc, vj, "SourceNode", s);
+		}
+		if (v->freq > 0) {
+			yyjson_mut_obj_add_uint(doc, vj, "SourceNode", v->freq);
+		}
+		if (v->dbm >= DBM_MIN && v->dbm <= DBM_MAX) {
+			yyjson_mut_obj_add_int(doc, vj, "dbm", v->dbm);
+		}
+		if (v->size > 0) {
+			yyjson_mut_obj_add_uint(doc, vj, "DataSize", v->size);
+		}
+
+		yyjson_mut_arr_append(evj, vj);
+	}
+	yyjson_mut_obj_add_val(doc, kvj, "Event", evj);
+
+	return kvj;
+}
+
+__unused static yyjson_mut_doc *
+kvh2yyjson(struct log_data_kv_hd *kvh)
+{
+	struct log_data_kv *kv;
+	struct yyjson_mut_doc *doc;
+	struct yyjson_mut_val *root;
+	struct yyjson_mut_val *kvj;
+
+	doc = yyjson_mut_doc_new(NULL);
+	root = yyjson_mut_arr(doc);
+
+	TAILQ_FOREACH(kv, kvh, chain) {
+		switch (kv->type) {
+			case KV_TYPE_SEQ:
+				kvj = wfb_mut_obj_kv_seq(doc, kv);
+				break;
+			case KV_TYPE_BLK:
+				kvj = wfb_mut_obj_kv_blk(doc, kv);
+				break;
+			default:
+				kvj = NULL;
+				break;
+		}
+		if (!kvj)
+			continue;
+		yyjson_mut_arr_append(root, kvj);
+	}
+	yyjson_mut_doc_set_root(doc, root);
+
+	return doc;
 }
 
 static int
-json_serialize_kvh(FILE *fp, struct log_store *ls, struct log_data_kv_hd *kvh)
+json_serialize_kvh(FILE *fp, struct log_data_kv_hd *kvh)
 {
-	struct log_data_kv *kv;
-	struct log_data_v *v;
-	bool first_kv = true;
-	int indent = 0;
+	struct yyjson_mut_doc *doc;
+	yyjson_write_flag flg;
+	yyjson_write_err err;
 
 	if (fp == NULL)
 		fp = stdout;
 
-	array_start(fp, NULL);
-	add_nl(fp);
+	doc = kvh2yyjson(kvh);
+	if (!doc)
+		return -1;
 
-	TAILQ_FOREACH(kv, kvh, chain) {
-		if (!first_kv) {
-			add_sep(fp);
-			add_nl(fp);
-		}
-		first_kv = false;
-
-		v = TAILQ_FIRST(&kv->vh);
-
-		obj_start(fp, NULL);
-
-		fprintfkv(fp, KEY_SQ, "%" PRIu64 "", kv->key);
-		add_sep(fp);
-		add_nl(fp);
-
-		if (kv->type == KV_TYPE_SEQ) {
-			fprintfkv(fp, KEY_BI, "%" PRIu64 "", v->block_idx);
-			add_sep(fp);
-			add_nl(fp);
-
-			fprintfkv(fp, KEY_FI, "%" PRIu64 "", v->fragment_idx);
-			add_sep(fp);
-			add_nl(fp);
-
-			fprintfkv(fp, KEY_IS_PARITY, "%s",
-			    v->is_parity ? "true" : "false");
-			add_sep(fp);
-			add_nl(fp);
-		}
-		else {
-			fprintfkv(fp, KEY_IS_LOST, "%s",
-			    kv->has_lost_frame ? "true" : "false");
-			add_sep(fp);
-			add_nl(fp);
-		}
-
-		fprintfkv(fp, KEY_IS_FEC,
-		    kv->has_fec_frame ? "true" : "false");
-		add_sep(fp);
-		add_nl(fp);
-
-
-		fprintfkv(fp, KEY_N_ETHER, "%d", kv->n_ethernet_frame);
-		add_sep(fp);
-		add_nl(fp);
-
-		fprintfkv(fp, KEY_N_H265, "%d", kv->n_h265_frame);
-		add_sep(fp);
-		add_nl(fp);
-
-		json_serialize_event(fp, kv);
-		add_nl(fp);
-
-		obj_end(fp);
+	flg = YYJSON_WRITE_PRETTY | YYJSON_WRITE_ESCAPE_UNICODE;
+	yyjson_mut_write_fp(fp, doc, flg, NULL, &err);
+	if (err.code) {
+		    p_info("JSON write error (%u): %s\n", err.code, err.msg);
+		    return -1;
 	}
-	add_nl(fp);
-
-	array_end(fp);
-	add_nl(fp);
+	yyjson_mut_doc_free(doc);
+	fprintf(fp, "\n");
+	fflush(fp);
 
 	return 0;
 }
@@ -347,11 +239,11 @@ json_serialize_kvh(FILE *fp, struct log_store *ls, struct log_data_kv_hd *kvh)
 int
 json_serialize(FILE *fp, struct log_store *ls)
 {
-	return json_serialize_kvh(fp, ls, &ls->kvh);
+	return json_serialize_kvh(fp, &ls->kvh);
 }
 
 int
 json_serialize_block(FILE *fp, struct log_store *ls)
 {
-	return json_serialize_kvh(fp, ls, &ls->block_kvh);
+	return json_serialize_kvh(fp, &ls->block_kvh);
 }
