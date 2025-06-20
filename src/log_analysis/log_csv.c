@@ -121,6 +121,8 @@ csv_serialize(FILE *fp, struct log_store *ls)
 	csv_serialize_v(fp, NULL, NULL);
 	TAILQ_FOREACH(kv, &ls->kvh, chain) {
 		TAILQ_FOREACH(v, &kv->vh, chain) {
+			if (v->filtered)
+				continue;
 			csv_serialize_v(fp, kv, v);
 		}
 	}
