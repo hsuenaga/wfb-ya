@@ -88,6 +88,7 @@ log_hist(struct log_store *ls)
 
 	p_info("%3s\t%10s\t%10s\t%-11s\n",
 	    "dbm", "Count", "Cumulative", "Graph");
+	mode = 0;
 	idx_mode = idx_min;
 	for (idx = idx_min; idx <= idx_Max; idx++) {
 		dbm = idx + INT8_MIN;
