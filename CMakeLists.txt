@@ -69,6 +69,7 @@ set(wfb_listener_srcs
 	src/fec_wfb.c
 	src/util_msg.c
 	src/util_rbuf.c
+	src/util_inet.c
 	src/wfb_ipc.c
 	src/compat.c
 	src/daemon.c
