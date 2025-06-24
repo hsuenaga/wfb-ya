@@ -153,13 +153,9 @@ static int
 netinet_tx_socket_open(void *arg)
 {
 	struct netinet_tx_context *ctx = (struct netinet_tx_context *)arg;
-	struct sockaddr_in6 mc_group;
-	struct sockaddr_in6 sin6_src;
-	struct ifaddrs *ifa, *ifap;
-	const int disable = 0;
-	const int enable = 1;
-	int mc_if;
-	int s, r;
+	struct sockaddr_storage ss;
+	socklen_t ss_len = sizeof(ss);
+	int s;
 
 	assert(ctx);
 
@@ -168,94 +164,10 @@ netinet_tx_socket_open(void *arg)
 		ctx->tx_sock = -1; 
 	}
 
-#ifdef SOCK_CLOEXEC
-	s = socket(AF_INET6, SOCK_DGRAM|SOCK_CLOEXEC, 0);
-#else
-	s = socket(AF_INET6, SOCK_DGRAM, 0);
-#endif
+	s = inet_tx_socket(wfb_options.mc_addr, wfb_options.mc_port, ctx->dev,
+	    (struct sockaddr *)&ss, &ss_len);
 	if (s < 0) {
-		p_err("Socket() failed: %s\n", strerror(errno));
-		return -1;
-	}
-
-	/* remote address and port */
-	mc_if = if_nametoindex(ctx->dev);
-	if (mc_if == 0) {
-		p_err("No such interface %s.\n", ctx->dev);
-		goto err;
-	}
-
-	memset(&mc_group, 0, sizeof(mc_group));
-	mc_group.sin6_family = AF_INET6;
-	mc_group.sin6_port = atoi(wfb_options.mc_port);
-	mc_group.sin6_flowinfo = 0;
-	r = inet_pton(AF_INET6, wfb_options.mc_addr, &mc_group.sin6_addr);
-	if (r == 0) {
-		p_err("invalid address %s\n", wfb_options.mc_addr);
-		goto err;
-	}
-	else if (r < 0) {
-		p_err("inet_pton() failed: %s.\n", strerror(errno));
-		goto err;
-
-	}
-	if (IN6_IS_ADDR_MC_LINKLOCAL(&mc_group.sin6_addr)) {
-		mc_group.sin6_scope_id = mc_if;
-	}
-	else {
-		mc_group.sin6_scope_id = 0;
-	}
-						  
-	/* local address and port */
-	sin6_src.sin6_family = AF_UNSPEC;
-	if (getifaddrs(&ifa) < 0) {
-		p_err("getifaddrs() failed: %s.\n", strerror(errno));
-		goto err;
-	}
-	for (ifap = ifa; ifap; ifap = ifap->ifa_next) {
-		struct sockaddr_in6 *ifa6;
-
-		if (ifap->ifa_addr == NULL)
-			continue;
-		if (ifap->ifa_addr->sa_family != AF_INET6)
-			continue;
-		ifa6 = (struct sockaddr_in6 *)ifap->ifa_addr;
-		if (ifa6->sin6_scope_id != mc_if)
-			continue;
-		memcpy(&sin6_src, ifa6, sizeof(sin6_src));
-		break;
-	}
-	freeifaddrs(ifa);
-	if (sin6_src.sin6_family != AF_INET6) {
-		p_err("cannot find valid inet address.\n");
-		goto err;
-	}
-	sin6_src.sin6_port = atoi(wfb_options.mc_port);
-	if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(enable)) < 0) {
-		p_err("setsockopt(SO_REUSEPORT) failed: %s.\n", strerror(errno));
-	}
-	if (bind(s, (struct sockaddr *)&sin6_src, sizeof(sin6_src)) < 0) {
-		p_err("bind() failed: %s.\n", strerror(errno));
-		goto err;
-	}
-
-	/* remote address and port */
-	if (connect(s, (struct sockaddr *)&mc_group, sizeof(mc_group)) < 0) {
-		p_err("connect() failed: %s.\n", strerror(errno));
-		goto err;
-	}
-
-	/* configure multicast tx */
-	if (setsockopt(s, IPPROTO_IPV6,
-	    IPV6_MULTICAST_IF, &mc_if, sizeof(mc_if)) < 0) {
-		p_err("setsockopt(IPV6_MULTICAST_IF) failed: %s.\n",
-		    strerror(errno));
-		goto err;
-	}
-	if (setsockopt(s, IPPROTO_IPV6,
-	    IPV6_MULTICAST_LOOP, &disable, sizeof(disable)) < 0) {
-		p_err("setsockopt(IPV6_MULTICAST_LOOP) failed: %s.\n",
-		    strerror(errno));
+		p_err("inet_tx_socket() failed.\n");
 		goto err;
 	}
 

@@ -193,7 +193,7 @@ bind_unicast(int s, struct sockaddr *sa, socklen_t sa_len, const char *s_dev)
 		return -1;
 	}
 
-	p_info("Listening on %s.\n", s_sockaddr(sa, sa_len));
+	p_info("Rx on %s.\n", s_sockaddr(sa, sa_len));
 	p_info("Unicast Rx.\n");
 
 	return 0;
@@ -205,6 +205,7 @@ bind_multicast(int s, struct sockaddr *sa, socklen_t sa_len, const char *s_dev)
 	struct sockaddr_storage ss;
 	socklen_t ss_len = sizeof(ss);
 	const int enable = 1;
+	const int disable = 0;
 	int r;
 
 	assert(sa);
@@ -225,8 +226,6 @@ bind_multicast(int s, struct sockaddr *sa, socklen_t sa_len, const char *s_dev)
 	r = copy_port((struct sockaddr *)&ss, sa);
 	if (r < 0) {
 		p_err("Cannot extract port info.\n");
-		p_err("ss => %s\n", s_sockaddr((struct sockaddr *)&ss, ss_len));
-		p_err("sa => %s\n", s_sockaddr(sa, sa_len));
 		return -1;
 	}
 
@@ -252,9 +251,9 @@ bind_multicast(int s, struct sockaddr *sa, socklen_t sa_len, const char *s_dev)
 		return -1;
 	}
 
-	p_info("Listening on %s.\n",
+	p_info("Rx on %s.\n",
 	    s_sockaddr((struct sockaddr *)&ss, ss_len));
-		
+
 	if (sa->sa_family == AF_INET) {
 		struct sockaddr_in *sin_if = (struct sockaddr_in *)&ss;
 		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
@@ -291,9 +290,179 @@ bind_multicast(int s, struct sockaddr *sa, socklen_t sa_len, const char *s_dev)
 			   strerror(errno));
 			return -1;
 		}
+
+		r = setsockopt(s, IPPROTO_IPV6,
+		    IPV6_MULTICAST_LOOP, &disable, sizeof(disable));
+		if (r < 0) {
+			p_err("setsockopt(IPV6_MULTICAST_LOOP) failed: %s.\n",
+			    strerror(errno));
+			return -1;
+		}
 	}
 
 	p_info("Multicast Rx. Group is %s.\n", s_sockaddr_wop(sa, sa_len));
+
+	return 0;
+}
+
+static int
+connect_unicast(int s, struct sockaddr *sa, socklen_t sa_len, const char *s_dev)
+{
+	struct sockaddr_storage ss;
+	socklen_t ss_len = sizeof(ss);
+	const int enable = 1;
+	int r;
+
+	assert(sa);
+
+	r = in6_addr_fixup(sa, s_dev);
+	if (r < 0) {
+		p_err("Invalid IPv6 address.\n");
+		return -1;
+	}
+
+	r = get_local_address(sa->sa_family,
+	    (struct sockaddr *)&ss, &ss_len, s_dev);
+	if (r < 0) {
+		p_err("Cannot select local address.\n");
+		return -1;
+	}
+
+	r = copy_port((struct sockaddr *)&ss, sa);
+	if (r < 0) {
+		p_err("Cannot extract port info.\n");
+		return -1;
+	}
+
+	r = setsockopt(s,
+	    SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable));
+	if (r < 0) {
+		p_err("setsockopt(SO_REUSEADDR) failed: %s.\n",
+		    strerror(errno));
+		return -1;
+	}
+
+	r = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(enable));
+	if (r < 0) {
+		p_err("setsockopt(SO_REUSEPORT) failed: %s.\n",
+		    strerror(errno));
+		return -1;
+	}
+
+	r = bind(s, (struct sockaddr *)&ss, ss_len);
+	if (r < 0) {
+		p_err("bind() failed: %s.\n", strerror(errno));
+		return -1;
+	}
+
+	p_info("Tx from %s.\n",
+	    s_sockaddr((struct sockaddr *)&ss, ss_len));
+
+	r = connect(s, sa, sa_len);
+	if (r < 0) {
+		p_err("connect() failed: %s.\n", strerror(errno));
+		return -1;
+	}
+
+	p_info("Unicast Tx to %s.\n",
+	    s_sockaddr(sa, sa_len));
+
+	return 0;
+}
+
+static int
+connect_multicast(int s,
+    struct sockaddr *sa, socklen_t sa_len, const char *s_dev)
+{
+	struct sockaddr_storage ss;
+	socklen_t ss_len = sizeof(ss);
+	const int enable = 1;
+	int r;
+
+	assert(sa);
+
+	r = in6_addr_fixup(sa, s_dev);
+	if (r < 0) {
+		p_err("Invalid IPv6 address.\n");
+		return -1;
+	}
+
+	r = get_local_address(sa->sa_family,
+	    (struct sockaddr *)&ss, &ss_len, s_dev);
+	if (r < 0) {
+		p_err("Cannot select local address.\n");
+		return -1;
+	}
+
+	r = copy_port((struct sockaddr *)&ss, sa);
+	if (r < 0) {
+		p_err("Cannot extract port info.\n");
+		return -1;
+	}
+
+	r = setsockopt(s,
+	    SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable));
+	if (r < 0) {
+		p_err("setsockopt(SO_REUSEADDR) failed: %s.\n",
+		    strerror(errno));
+		return -1;
+	}
+
+	r = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(enable));
+	if (r < 0) {
+		p_err("setsockopt(SO_REUSEPORT) failed: %s.\n",
+		    strerror(errno));
+		return -1;
+	}
+
+	r = bind(s, (struct sockaddr *)&ss, ss_len);
+	if (r < 0) {
+		p_err("bind() failed: %s.\n", strerror(errno));
+		return -1;
+	}
+
+	p_info("Tx from %s.\n",
+	    s_sockaddr((struct sockaddr *)&ss, ss_len));
+
+	if (sa->sa_family == AF_INET) {
+		r = setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, &ss, ss_len);
+		if (r < 0) {
+			p_err("setsockopt(IP_MULTICAST_IF) failed: %s.\n",
+			  strerror(errno));
+			return -1;
+		}
+
+		r = connect(s, sa, sa_len);
+		if (r < 0) {
+			p_err("connect() failed: %s.\n", strerror(errno));
+			return -1;
+		}
+	}
+	else if (sa->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+		int ifidx = 0;
+
+		if (s_dev)
+			ifidx = if_nametoindex(s_dev);
+		if (ifidx == 0)
+			ifidx = sin6->sin6_scope_id;
+
+		r = setsockopt(s,
+		    IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifidx, sizeof(ifidx));
+		if (r < 0) {
+			p_err("setsockopt(IPV6_MULTICAST_IF) failed: %s.\n",
+			    strerror(errno));
+			return -1;
+		}
+		r = connect(s, sa, sa_len);
+		if (r < 0) {
+			p_err("connect() failed: %s.\n", strerror(errno));
+			return -1;
+		}
+	}
+
+	p_info("Multicast Tx to %s.\n",
+	    s_sockaddr(sa, sa_len));
 
 	return 0;
 }
@@ -346,6 +515,78 @@ inet_rx_socket(const char *s_addr, const char *s_port, const char *s_dev,
 		}
 		else {
 			r = bind_unicast(s,
+			    ai->ai_addr, ai->ai_addrlen, s_dev);
+			if (r < 0) {
+				p_err("bind_unicast failed.\n");
+				return -1;
+			}
+		}
+
+		if (sa && *sa_len >= ai->ai_addrlen) {
+			*sa_len = ai->ai_addrlen;
+			memcpy(sa, ai->ai_addr, *sa_len);
+		}
+		break;
+	}
+	freeaddrinfo(res);
+
+	if (s < 0) {
+		p_err("Could not find valid address for %s:%s.\n",
+		    s_addr, s_port);
+		return -1;
+	}
+
+	return s;
+}
+
+int
+inet_tx_socket(const char *s_addr, const char *s_port, const char *s_dev,
+    struct sockaddr *sa, socklen_t *sa_len)
+{
+	struct addrinfo *res, *ai;
+	struct addrinfo hints;
+	int s = -1;
+	int r;
+
+	assert(s_addr);
+	assert(s_port);
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+#ifdef SOCK_CLOEXEC
+	hints.ai_socktype = SOCK_DGRAM | SOCK_CLOEXEC;
+#else
+	hints.ai_socktype = SOCK_DGRAM;
+#endif
+	hints.ai_protocol = IPPROTO_UDP;
+	hints.ai_flags = 0;
+	if (!wfb_options.use_dns) {
+		hints.ai_flags |= (AI_NUMERICHOST | AI_NUMERICSERV);
+	}
+
+	r = getaddrinfo(s_addr, s_port, &hints, &res);
+	if (r != 0) {
+		p_err("getaddrinfo() failed: %s\n", gai_strerror(r));
+		return -1;
+	}
+	for (ai = res; ai; ai = ai->ai_next) {
+		s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+		if (s < 0) {
+			p_err("socket() failed: %s\n", strerror(errno));
+			freeaddrinfo(res);
+			return -1;
+		}
+
+		if (is_addr_multicast(ai->ai_addr)) {
+			r = connect_multicast(s,
+			    ai->ai_addr, ai->ai_addrlen, s_dev);
+			if (r < 0) {
+				p_err("bind_multicast failed.\n");
+				return -1;
+			}
+		}
+		else {
+			r = connect_unicast(s,
 			    ai->ai_addr, ai->ai_addrlen, s_dev);
 			if (r < 0) {
 				p_err("bind_unicast failed.\n");

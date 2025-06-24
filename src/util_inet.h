@@ -6,6 +6,8 @@
 
 extern int inet_rx_socket(const char *s_addr, const char *s_port,
     const char *s_dev, struct sockaddr *sa, socklen_t *sa_len);
+extern int inet_tx_socket(const char *s_addr, const char *s_port,
+    const char *s_dev, struct sockaddr *sa, socklen_t *sa_len);
 
 static inline bool
 is_addr_multicast(struct sockaddr *sa)
