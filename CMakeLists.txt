@@ -21,6 +21,10 @@ if (ENABLE_GSTREAMER)
 	pkg_check_modules(GSTREAMER_APP REQUIRED gstreamer-app-1.0)
 endif ()
 
+## libyaml
+FIND_PATH(LIBYAML_INCLUDE_DIR NAMES yaml.h)
+FIND_LIBRARY(LIBYAML_LIBRARIES NAMES yaml libyaml)
+
 ## External module radiotap-libary
 set (RADIOTAP_DIR "${CMAKE_SOURCE_DIR}/external/radiotap-library")
 set (RADIOTAP_INCLUDE_DIRS "${RADIOTAP_DIR}")
@@ -165,7 +169,6 @@ set(wfb_log_analysis_srcs
 if (ENABLE_GSTREAMER)
 set(wfb_log_analysis_libs
 	${GSTREAMER_APP_LIBRARIES}
-	
 )
 set(wfb_log_analysis_srcs
 	${wfb_log_analysis_srcs}
@@ -184,6 +187,7 @@ add_executable(wfb_log_analysis
 
 target_include_directories(wfb_log_analysis PUBLIC
 	${wfb_log_analysis_incs}
+	${LIBYAML_INCLUDE_DIR}
 )
 
 target_link_directories(wfb_log_analysis PUBLIC
@@ -192,6 +196,7 @@ target_link_directories(wfb_log_analysis PUBLIC
 
 target_link_libraries(wfb_log_analysis PUBLIC
 	${wfb_log_analysis_libs}
+	${LIBYAML_LIBRARIES}
 )
 
 target_link_libraries(wfb_log_analysis PRIVATE

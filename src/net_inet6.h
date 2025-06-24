@@ -14,6 +14,8 @@ struct netinet6_rx_context {
 	struct netcore_context *net_ctx;
 	struct rx_context *rx_ctx;
 	const char *dev;
+	struct sockaddr_storage *ss_local;
+	bool multicast_rx;
 	int rx_sock;
 	struct event *rx_ev;
 

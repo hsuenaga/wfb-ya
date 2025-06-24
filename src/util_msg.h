@@ -1,7 +1,11 @@
 #ifndef __UTIL_LOG_H__
 #define __UTIL_LOG_H__
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include "util_attribute.h"
 
 enum msg_hook_type {
@@ -68,5 +72,45 @@ s_binary(uint8_t *b, size_t len)
 	}
 
 	return (const char *)s;
+}
+
+static inline const char *
+s_sockaddr0(struct sockaddr *sa, socklen_t sa_len, bool use_port)
+{
+	static char s[BUFSIZ];
+	char host[NI_MAXHOST], port[NI_MAXSERV];
+	int r;
+
+	if (sa == NULL)
+		return "(null)";
+
+	r = getnameinfo(sa, sa_len, host, sizeof(host), port, sizeof(port),
+	    NI_NUMERICHOST | NI_NUMERICSERV);
+	if (r != 0) {
+		p_err("getnameinfo() failed: %s.\n", gai_strerror(r));
+		return "(error)";
+	}
+
+	if (use_port) {
+		snprintf(s, sizeof(s), "%s port %s", host, port);
+	}
+	else {
+		snprintf(s, sizeof(s), "%s", host);
+	}
+
+	return s;
+}
+
+static inline const char *
+s_sockaddr(struct sockaddr *sa, socklen_t sa_len)
+{
+	return s_sockaddr0(sa, sa_len, true);
+}
+
+
+static inline const char *
+s_sockaddr_wop(struct sockaddr *sa, socklen_t sa_len)
+{
+	return s_sockaddr0(sa, sa_len, false);
 }
 #endif /* __UTIL_LOG_H__ */

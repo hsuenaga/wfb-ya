@@ -21,7 +21,7 @@
 // WFB Protocol
 #define WFB_SIG		0x5742
 #define WFB_ADDR6	"ff02::5742"
-#define WFB_PORT	5742
+#define WFB_PORT	"5742"
 #define MAX_BLOCK_IDX	((1LLU << 55) - 1)
 
 // Process Control
@@ -39,13 +39,14 @@ struct wfb_opt {
 	const char *pid_file;
 	const char *ctrl_file;
 	const char *query_param;
-	uint16_t mc_port;
+	const char *mc_port;
 	bool local_play;
 	bool use_monitor;
 	bool no_fec;
 	bool debug;
 	bool daemon;
 	bool kill_daemon;
+	bool use_dns;
 };
 
 struct wfb_statistics {

@@ -140,15 +140,7 @@ load_environment(void)
 	}
 	v = getenv("WFB_PORT");
 	if (v) {
-		long val;
-
-		val = strtol(v, NULL, 10);
-		if (val <= 0 || val > 0xffff) {
-			fprintf(stderr, "Invalid Port %s in WFB_PORT.\n", v);
-		}
-		else {
-			wfb_options.mc_port = (uint16_t)val;
-		}
+		wfb_options.mc_port = v;
 	}
 }
 
@@ -178,13 +170,7 @@ parse_options(int *argc0, char **argv0[])
 				wfb_options.mc_addr = optarg;
 				break;
 			case 'p':
-				val = strtol(optarg, NULL, 10);
-				if (val <= 0 || val > 0xffff) {
-					fprintf(stderr,
-					    "Invalid port %s\n", optarg);
-					exit(0);
-				}
-				wfb_options.mc_port = (uint16_t)val;
+				wfb_options.mc_port = optarg;
 				break;
 			case 'k':
 				wfb_options.key_file = optarg;
