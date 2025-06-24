@@ -10,7 +10,7 @@
 #include "net_core.h"
 #include "rx_core.h"
 
-struct netinet6_rx_context {
+struct netinet_rx_context {
 	struct netcore_context *net_ctx;
 	struct rx_context *rx_ctx;
 	const char *dev;
@@ -22,19 +22,19 @@ struct netinet6_rx_context {
 	uint8_t rxbuf[INET6_MTU];
 };
 
-struct netinet6_tx_context {
+struct netinet_tx_context {
 	struct netcore_context *net_ctx;
 	const char *dev;
 	int tx_sock;
 };
 
-extern int netinet6_rx_initialize(struct netinet6_rx_context *ctx,
+extern int netinet_rx_initialize(struct netinet_rx_context *ctx,
     struct netcore_context *core_ctx,
     struct rx_context *rx_ctx,
     const char *dev);
-extern int netinet6_tx_initialize(struct netinet6_tx_context *ctx,
+extern int netinet_tx_initialize(struct netinet_tx_context *ctx,
     struct netcore_context *core_ctx, const char *dev);
-extern void netinet6_rx_deinitialize(struct netinet6_rx_context *ctx);
+extern void netinet_rx_deinitialize(struct netinet_rx_context *ctx);
 
-extern void netinet6_tx(struct iovec *iov, int iovcnt, void *arg);
+extern void netinet_tx(struct iovec *iov, int iovcnt, void *arg);
 #endif /* __NET_INET6_H__ */

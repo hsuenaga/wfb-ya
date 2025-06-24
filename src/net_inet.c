@@ -18,7 +18,7 @@
 #include "compat.h"
 
 #include "wfb_params.h"
-#include "net_inet6.h"
+#include "net_inet.h"
 #include "util_msg.h"
 
 static inline bool
@@ -427,9 +427,9 @@ rx_socket_open(const char *s_addr, const char *s_port, const char *s_dev,
 }
 
 static void
-netinet6_rx(evutil_socket_t fd, short event, void *arg)
+netinet_rx(evutil_socket_t fd, short event, void *arg)
 {
-	struct netinet6_rx_context *ctx = (struct netinet6_rx_context *)arg;
+	struct netinet_rx_context *ctx = (struct netinet_rx_context *)arg;
 	struct sockaddr_storage ss_src;
 	socklen_t ss_len;
 	ssize_t rxlen;
@@ -463,9 +463,9 @@ retry:
 
 
 void
-netinet6_tx(struct iovec *iov, int iovcnt, void *arg)
+netinet_tx(struct iovec *iov, int iovcnt, void *arg)
 {
-	struct netinet6_tx_context *ctx = (struct netinet6_tx_context *)arg;
+	struct netinet_tx_context *ctx = (struct netinet_tx_context *)arg;
 	ssize_t n;
 
 	assert(ctx);
@@ -488,9 +488,9 @@ retry:
 }
 
 static int
-netinet6_rx_socket_open(void *arg)
+netinet_rx_socket_open(void *arg)
 {
-	struct netinet6_rx_context *ctx = (struct netinet6_rx_context *)arg;
+	struct netinet_rx_context *ctx = (struct netinet_rx_context *)arg;
 	struct sockaddr_storage ss;
 	socklen_t ss_len = sizeof(ss);
 	int s;
@@ -515,9 +515,9 @@ netinet6_rx_socket_open(void *arg)
 
 	ctx->rx_sock = s;
 	ctx->rx_ev = netcore_rx_event_add(ctx->net_ctx, ctx->rx_sock,
-	    netinet6_rx, ctx);
+	    netinet_rx, ctx);
 	if (ctx->rx_ev == NULL) {
-		p_err("Cannot register inet6 event.\n");
+		p_err("Cannot register inet event.\n");
 		goto err;
 	}
 
@@ -532,7 +532,7 @@ err:
 }
 
 int
-netinet6_rx_initialize(struct netinet6_rx_context *ctx,
+netinet_rx_initialize(struct netinet_rx_context *ctx,
     struct netcore_context *net_ctx,
     struct rx_context *rx_ctx,
     const char *dev)
@@ -548,15 +548,15 @@ netinet6_rx_initialize(struct netinet6_rx_context *ctx,
 	ctx->dev = dev;
 	ctx->rx_sock = -1;
 
-	netcore_reload_hook_add(net_ctx, netinet6_rx_socket_open, ctx);
+	netcore_reload_hook_add(net_ctx, netinet_rx_socket_open, ctx);
 
-	return netinet6_rx_socket_open(ctx);
+	return netinet_rx_socket_open(ctx);
 }
 
 static int
-netinet6_tx_socket_open(void *arg)
+netinet_tx_socket_open(void *arg)
 {
-	struct netinet6_tx_context *ctx = (struct netinet6_tx_context *)arg;
+	struct netinet_tx_context *ctx = (struct netinet_tx_context *)arg;
 	struct sockaddr_in6 mc_group;
 	struct sockaddr_in6 sin6_src;
 	struct ifaddrs *ifa, *ifap;
@@ -631,7 +631,7 @@ netinet6_tx_socket_open(void *arg)
 	}
 	freeifaddrs(ifa);
 	if (sin6_src.sin6_family != AF_INET6) {
-		p_err("cannot find valid inet6 address.\n");
+		p_err("cannot find valid inet address.\n");
 		goto err;
 	}
 	sin6_src.sin6_port = atoi(wfb_options.mc_port);
@@ -674,7 +674,7 @@ err:
 }
 
 int
-netinet6_tx_initialize(struct netinet6_tx_context *ctx,
+netinet_tx_initialize(struct netinet_tx_context *ctx,
     struct netcore_context *net_ctx, const char *dev)
 {
 	assert(ctx);
@@ -685,13 +685,13 @@ netinet6_tx_initialize(struct netinet6_tx_context *ctx,
 	ctx->dev = dev;
 	ctx->tx_sock = -1;
 
-	netcore_reload_hook_add(net_ctx, netinet6_tx_socket_open, ctx);
+	netcore_reload_hook_add(net_ctx, netinet_tx_socket_open, ctx);
 
-	return netinet6_tx_socket_open(ctx);
+	return netinet_tx_socket_open(ctx);
 }
 
 void
-netinet6_rx_deinitialize(struct netinet6_rx_context *ctx)
+netinet_rx_deinitialize(struct netinet_rx_context *ctx)
 {
 	assert(ctx);
 

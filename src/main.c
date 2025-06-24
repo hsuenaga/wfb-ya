@@ -21,7 +21,7 @@
 #include "wfb_params.h"
 #include "net_core.h"
 #include "net_pcap.h"
-#include "net_inet6.h"
+#include "net_inet.h"
 #include "rx_core.h"
 #include "rx_log.h"
 #include "crypto_wfb.h"
@@ -76,7 +76,7 @@ print_help(const char *path)
 	    DEF_ERX ? DEF_ERX : "none");
 	printf("\t-a <addr> ... specify Multicast address . default: %s\n",
 	    WFB_ADDR6);
-	printf("\t-p <port> ... specify Multicast port . default: %u\n",
+	printf("\t-p <port> ... specify Multicast port . default: %s\n",
 	    WFB_PORT);
 	printf("\t-k <file> ... specify cipher key. default: %s\n",
 	    DEF_KEY_FILE ? DEF_KEY_FILE : "none");
@@ -152,8 +152,6 @@ parse_options(int *argc0, char **argv0[])
 	int ch;
 
 	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:L:P:S:s:DKlmndh")) != -1) {
-		long val;
-
 		switch (ch) {
 			case 'w':
 				wfb_options.rx_wired = NULL;
@@ -242,8 +240,8 @@ _main(int argc, char *argv[])
 	struct netcore_context net_ctx;
 	struct ipc_rx_context ipc_ctx;
 	struct netpcap_context pcap_ctx;
-	struct netinet6_rx_context in6r_ctx;
-	struct netinet6_tx_context in6t_ctx;
+	struct netinet_rx_context inrx_ctx;
+	struct netinet_tx_context intx_ctx;
 	struct rx_context rx_ctx;
 #ifdef ENABLE_GSTREAMER
 	struct decode_h265_context d_ctx;
@@ -304,8 +302,8 @@ _main(int argc, char *argv[])
 
 	p_debug("Initializing tx components\n");
 	if (wfb_options.tx_wired) {
-		netinet6_tx_initialize(&in6t_ctx, &net_ctx, wfb_options.tx_wired);
-		if (rx_context_set_mirror(&rx_ctx, netinet6_tx, &in6t_ctx) < 0) {
+		netinet_tx_initialize(&intx_ctx, &net_ctx, wfb_options.tx_wired);
+		if (rx_context_set_mirror(&rx_ctx, netinet_tx, &intx_ctx) < 0) {
 			p_err("Cannot Attach NetRx\n");
 			exit(0);
 		}
@@ -342,8 +340,8 @@ _main(int argc, char *argv[])
 	}
 
 	if (wfb_options.rx_wired) {
-		p_debug("Initalizing inet6 rx.\n");
-		fd = netinet6_rx_initialize(&in6r_ctx, &net_ctx, &rx_ctx,
+		p_debug("Initalizing inet rx.\n");
+		fd = netinet_rx_initialize(&inrx_ctx, &net_ctx, &rx_ctx,
 		    wfb_options.rx_wired);
 		if (fd < 0) {
 			p_err("Cannot Initialize Inet6 Rx\n");
@@ -366,7 +364,7 @@ _main(int argc, char *argv[])
 #endif
 
 	if (wfb_options.rx_wired) {
-		netinet6_rx_deinitialize(&in6r_ctx);
+		netinet_rx_deinitialize(&inrx_ctx);
 	}
 	if (wfb_options.rx_wireless) {
 		netpcap_deinitialize(&pcap_ctx);

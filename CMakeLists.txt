@@ -55,7 +55,7 @@ set(wfb_listener_srcs
 	src/main.c
 	src/net_core.c
 	src/net_pcap.c
-	src/net_inet6.c
+	src/net_inet.c
 	src/rx_core.c
 	src/rx_session.c
 	src/rx_data.c
