@@ -300,8 +300,8 @@ _main(int argc, char *argv[])
 	}
 	msg_set_hook(rx_log_hook, &rx_ctx);
 
-	p_debug("Initializing tx components\n");
 	if (wfb_options.tx_wired) {
+		p_debug("Initalizing inet tx.\n");
 		netinet_tx_initialize(&intx_ctx, &net_ctx, wfb_options.tx_wired);
 		if (rx_context_set_mirror(&rx_ctx, netinet_tx, &intx_ctx) < 0) {
 			p_err("Cannot Attach NetRx\n");
@@ -328,7 +328,6 @@ _main(int argc, char *argv[])
 	}
 #endif
 
-	p_debug("Initializing rx components\n");
 	if (wfb_options.rx_wireless) {
 		p_debug("Initalizing pcap rx.\n");
 		fd = netpcap_initialize(&pcap_ctx, &net_ctx, &rx_ctx,
@@ -364,7 +363,12 @@ _main(int argc, char *argv[])
 #endif
 
 	if (wfb_options.rx_wired) {
+		p_debug("Deinitalizing inet rx.\n");
 		netinet_rx_deinitialize(&inrx_ctx);
+	}
+	if (wfb_options.tx_wired) {
+		p_debug("Deinitalizing inet tx.\n");
+		netinet_tx_deinitialize(&intx_ctx);
 	}
 	if (wfb_options.rx_wireless) {
 		netpcap_deinitialize(&pcap_ctx);

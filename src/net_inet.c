@@ -212,3 +212,14 @@ netinet_rx_deinitialize(struct netinet_rx_context *ctx)
 		ctx->rx_sock = -1;
 	}
 }
+
+void
+netinet_tx_deinitialize(struct netinet_tx_context *ctx)
+{
+	assert(ctx);
+
+	if (ctx->tx_sock >= 0) {
+		close(ctx->tx_sock);
+		ctx->tx_sock = -1;
+	}
+}
