@@ -19,16 +19,12 @@ struct wfb_gst_context {
 
 	GstElement *pipeline;
 
-	GstElement *source;
-	GstElement *input_queue;
-	GstElement *jitter;
-	GstElement *rtp;
-	GstElement *h265;
-	GstElement *conv;
-	GstElement *sink_queue;
-	GstElement *mux;
-	GstElement *sink;
-	GstElement *enc;
+	GstElement *source;		/* BIN */
+	GstElement *appsrc;		/* not BIN */
+	GstElement *rtp;		/* BIN */
+	GstElement *codec;		/* BIN */
+	GstElement *overlay;		/* BIN */
+	GstElement *sink;		/* BIN */
 };
 
 extern int wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file,
