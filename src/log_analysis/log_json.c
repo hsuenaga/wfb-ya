@@ -105,7 +105,7 @@ wfb_mut_obj_kv_seq(struct yyjson_mut_doc *doc, struct log_data_kv *kv)
 		yyjson_mut_obj_add_str(doc, vj, "Type", s_v_type(v));
 		s = s_source(v);
 		if (s) {
-			yyjson_mut_obj_add_str(doc, vj, "SourceNode", s);
+			yyjson_mut_obj_add_strcpy(doc, vj, "SourceNode", s);
 		}
 		if (v->freq > 0) {
 			yyjson_mut_obj_add_uint(doc, vj, "SourceNode", v->freq);
