@@ -1,10 +1,13 @@
 #ifndef __WFB_GST_H__
 #define __WFB_GST_H__
 #include <stdint.h>
+#include <stdbool.h>
 #include <pthread.h>
 #include <sys/time.h>
 
 #include <gst/gst.h>
+
+#define	OVERLAY_NHIST 300
 
 struct wfb_gst_context {
 	GMainLoop *loop;
@@ -25,6 +28,9 @@ struct wfb_gst_context {
 	GstElement *codec;		/* BIN */
 	GstElement *overlay;		/* BIN */
 	GstElement *sink;		/* BIN */
+
+	/* Overlay data */
+	int8_t history[OVERLAY_NHIST];
 };
 
 extern int wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file,
@@ -34,6 +40,7 @@ extern int wfb_gst_thread_start(struct wfb_gst_context *ctx);
 extern int wfb_gst_thread_join(struct wfb_gst_context *ctx);
 
 /* opaque argument 'void *arg' must be wfb_gst_context */
+extern void wfb_gst_add_dbm(int8_t dbm, void *arg);
 extern void wfb_gst_write(struct timespec *ts, uint8_t *data, size_t size, void *arg);
 extern void wfb_gst_eos(void *arg);
 #endif /* __WFB_GST_H__ */

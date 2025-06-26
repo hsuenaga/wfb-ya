@@ -19,6 +19,10 @@ if (ENABLE_GSTREAMER)
 	pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
 	# libgstreamer-plugins-base1.0-dev
 	pkg_check_modules(GSTREAMER_APP REQUIRED gstreamer-app-1.0)
+	# libgstreamer-plugins-base1.0-dev
+	pkg_check_modules(GSTREAMER_VIDEO REQUIRED gstreamer-video-1.0)
+	# cairo
+	#pkg_check_modules(CAIRO REQUIRED cairo)
 endif ()
 
 ## libyaml
@@ -167,20 +171,40 @@ set(wfb_log_analysis_srcs
 	src/compat.c
 )
 
-if (ENABLE_GSTREAMER)
 set(wfb_log_analysis_libs
-	${GSTREAMER_APP_LIBRARIES}
+	${LIBYAML_LIBRARIES}
 )
-set(wfb_log_analysis_srcs
-	${wfb_log_analysis_srcs}
-	src/wfb_gst.c
-	src/log_analysis/log_h265.c
-)
-endif ()
 
 set(wfb_log_analysis_incs
 	${wfb_listener_incs}
 )
+
+set(wfb_log_analysis_libdirs
+	${wfb_listener_libdirs}
+)
+
+if (ENABLE_GSTREAMER)
+set(wfb_log_analysis_srcs
+	${wfb_log_analysis_srcs}
+	src/wfb_gst.c
+	src/wfb_gst_overlay.c
+	src/log_analysis/log_h265.c
+)
+set(wfb_log_analysis_libs
+	${wfb_log_analysis_libs}
+	${GSTREAMER_APP_LIBRARIES}
+	${GSTREAMER_VIDEO_LIBRARIES}
+	${CAIRO_LIBRARIES}
+)
+set(wfb_log_analysis_incs
+	${wfb_log_analysis_incs}
+	${CAIRO_INCLUDE_DIRS}
+)
+set(wfb_log_analysis_libdirs
+	${wfb_log_analysis_libdirs}
+	${CAIRO_LIBRARY_DIRS}
+)
+endif ()
 
 add_executable(wfb_log_analysis
 	${wfb_log_analysis_srcs}
@@ -192,12 +216,11 @@ target_include_directories(wfb_log_analysis PUBLIC
 )
 
 target_link_directories(wfb_log_analysis PUBLIC
-	${wfb_listener_libdirs}
+	${wfb_log_analysis_libdirs}
 )
 
 target_link_libraries(wfb_log_analysis PUBLIC
 	${wfb_log_analysis_libs}
-	${LIBYAML_LIBRARIES}
 )
 
 target_link_libraries(wfb_log_analysis PRIVATE

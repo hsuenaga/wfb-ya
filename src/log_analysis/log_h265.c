@@ -40,7 +40,13 @@ play_h265(struct log_store *ls)
 	clock_gettime(CLOCK_MONOTONIC, &epoch);
 	timespecclear(&elapsed);
 	TAILQ_FOREACH(kv, &ls->kvh, chain) {
+		int8_t dbm = INT8_MIN;
 		TAILQ_FOREACH(v, &kv->vh, chain) {
+			if (v->type == FRAME_TYPE_INET6) {
+				if (v->dbm > dbm) 
+					dbm = v->dbm;
+				continue;
+			}
 			if (v->type != FRAME_TYPE_DECODE)
 				continue;
 			if (v->filtered)
@@ -52,6 +58,7 @@ play_h265(struct log_store *ls)
 					usleep(1);
 					continue;
 				}
+				wfb_gst_add_dbm(dbm, &player_ctx);
 				wfb_gst_write(&v->ts,
 				    v->buf, v->size, &player_ctx);
 				break;
@@ -105,13 +112,31 @@ write_mp4_enc(const char *file, struct log_store *ls)
 	wfb_gst_context_init(&ctx, file, true);
 	wfb_gst_thread_start(&ctx);
 
+	clock_gettime(CLOCK_MONOTONIC, &epoch);
+	timespecclear(&elapsed);
 	TAILQ_FOREACH(kv, &ls->kvh, chain) {
+		int8_t dbm = INT8_MIN;
 		TAILQ_FOREACH(v, &kv->vh, chain) {
+			if (v->type == FRAME_TYPE_INET6) {
+				if (v->dbm > dbm) 
+					dbm = v->dbm;
+				continue;
+			}
 			if (v->type != FRAME_TYPE_DECODE)
 				continue;
 			if (v->filtered)
 				continue;
-			wfb_gst_write(&v->ts, v->buf, v->size, &ctx);
+			for (;;) {
+				clock_gettime(CLOCK_MONOTONIC, &elapsed);
+				timespecsub(&elapsed, &epoch, &elapsed);
+				if (timespeccmp(&elapsed, &v->ts, <)) {
+					usleep(1);
+					continue;
+				}
+				wfb_gst_add_dbm(dbm, &ctx);
+				wfb_gst_write(&v->ts, v->buf, v->size, &ctx);
+				break;
+			}
 		}
 	}
 	wfb_gst_eos(&ctx);

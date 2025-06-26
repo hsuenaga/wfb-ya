@@ -10,7 +10,10 @@
 #include <gst/app/gstappsrc.h>
 
 #include "wfb_gst.h"
+#include "wfb_gst_overlay.h"
 #include "util_msg.h"
+
+#include "compat.h"
 
 static const char *
 s_state(GstState state)
@@ -320,6 +323,13 @@ wfb_gst_init_codec(struct wfb_gst_context *ctx, const char *file, bool enc)
 		goto add_pad;
 	}
 
+	/* at first, try ffmpeg for maximum compatiblity */
+	e = gst_element_factory_make("avdec_h265", "h265");
+	if (e) {
+		p_info("Uisng avdec_h265\n");
+		goto finish;
+	}
+
 	/* try Video4Linux */
 	e = gst_element_factory_make("v4l2slh265dec", "h265");
 	if (e) {
@@ -335,13 +345,6 @@ wfb_gst_init_codec(struct wfb_gst_context *ctx, const char *file, bool enc)
 		goto finish;
 	}
 
-	/* try ffmpeg */
-	e = gst_element_factory_make("avdec_h265", "h265");
-	if (e) {
-		p_info("Uisng avdec_h265\n");
-		goto finish;
-	}
-	
 	/* fallback to software codec */
 	e = gst_element_factory_make("libde265dec", "h265");
 	if (e) {
@@ -500,6 +503,14 @@ wfb_gst_init_sink(struct wfb_gst_context *ctx, const char *file, bool enc)
 }
 
 int
+wfb_gst_init_overlay(struct wfb_gst_context *ctx, const char *file, bool enc)
+{
+	ctx->overlay = wfb_overlay(ctx);
+
+	return 0;
+}
+
+int
 wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file, bool enc)
 {
 	GstElement *last = NULL;
@@ -516,13 +527,19 @@ wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file, bool enc)
 
 	p_debug("setup gst\n");
 
-	/* AppSrc: main thread */
+	/*
+	 * Main thread
+	 */
+	/* AppSrc => queue */
 	if (wfb_gst_init_source(ctx) < 0) {
 		p_err("failed to initialize gst source element.\n");
 		return -1;
 	}
 
-	/* RTP parser */
+	/*
+	 * Runner thread
+	 */
+	/* queue => RTP parser */
 	if (wfb_gst_init_rtp(ctx, file, enc) < 0) {
 		p_err("failed to initialize gst rtp element.\n");
 		return -1;
@@ -531,6 +548,12 @@ wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file, bool enc)
 	/* CODEC */
 	if (wfb_gst_init_codec(ctx, file, enc) < 0) {
 		p_err("failed to initialize gst codec element.\n");
+		return -1;
+	}
+
+	/* Overlay */
+	if (wfb_gst_init_overlay(ctx, file, enc) < 0) {
+		p_err("failed to initialize overlay element.\n");
 		return -1;
 	}
 
@@ -633,6 +656,20 @@ wfb_gst_thread_join(struct wfb_gst_context *ctx)
 	wfb_gst_context_deinit(ctx);
 
 	return 0;
+}
+
+void
+wfb_gst_add_dbm(int8_t dbm, void *arg)
+{
+	struct wfb_gst_context *ctx = arg;
+	int i, max;
+
+	max = NELEMS(ctx->history);
+
+	for (i = 0; i < (max - 1); i++) {
+		ctx->history[i] = ctx->history[i + 1];
+	}
+	ctx->history[max - 1] = dbm;
 }
 
 void
