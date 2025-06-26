@@ -17,8 +17,10 @@ struct wfb_gst_context {
 	pthread_t tid_loop;
 
 	int bus_watch_id;
-	int initialized;
-	int closing;
+	bool initialized;
+	bool closing;
+	bool enc;
+	const char *file;
 
 	GstElement *pipeline;
 
@@ -31,7 +33,7 @@ struct wfb_gst_context {
 
 	/* Overlay data */
 	int8_t history[OVERLAY_NHIST];
-	int history_cur = 0;
+	int history_cur;
 };
 
 extern int wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file,

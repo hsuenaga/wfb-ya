@@ -518,6 +518,8 @@ wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file, bool enc)
 
 	assert(ctx);
 	memset(ctx, 0, sizeof(*ctx));
+	ctx->file = file;
+	ctx->enc = enc;
 
 	pthread_mutex_init(&ctx->lock, NULL);
 	pthread_cond_init(&ctx->eos, NULL);
@@ -666,7 +668,9 @@ wfb_gst_add_dbm(int8_t dbm, void *arg)
 
 	max = NELEMS(ctx->history);
 
-	ctx->history[history_cur++] = dbm;
+	ctx->history[ctx->history_cur++] = dbm;
+	if (ctx->history_cur > sizeof(ctx->history))
+		ctx->history_cur = 0;
 }
 
 void

@@ -46,30 +46,36 @@ write_boundary(CairoOverlayState *s, cairo_t *cr)
 }
 
 static void
-write_graph(CairoOverlayState *s, cairo_t *cr)
+write_graph(CairoOverlayState *s, cairo_t *cr, bool fill)
 {
 	struct wfb_gst_context *ctx = s->wfb_gst_ctx;
+	int idx, x, y;
 
 	cairo_set_source_rgba(cr, 0.9, 0.0, 0.1, 0.5);
-	cairo_set_line_width(cr, s->line_width);
+	cairo_set_line_width(cr, s->line_width * 3);
 
-	cairo_move_to(cr, 0, s->max_y);
-	for (int x = 0; x <= s->max_x; x++) {
-		int idx;
-		int y;
-
-		idx = ctx->history_cur + x + 1;
-		if (idx > NELEMS(ctx->history))
-			idx = 0;
-	       	y = ctx->history[x] + 65;	// add offset: -65dbm => 0
+	if (fill) {
+		cairo_move_to(cr, 0, s->max_y);
+	}
+	idx = ctx->history_cur;
+	for (x = 0; x <= s->max_x; x++) {
+	       	y = ctx->history[idx] + 65;	// add offset: -65dbm => 0
 		y = s->max_y - y;		// invert y
 		y = sat_y(y, 0, s->max_y);	// saturate y
 
 		cairo_line_to(cr, x, y);
+		idx++;
+		if (idx >= NELEMS(ctx->history))
+			idx = 0;
 	}
-	cairo_line_to(cr, s->max_x, s->max_y);
-	cairo_line_to(cr, 0, s->max_y);
-	cairo_fill(cr);
+	if (fill) {
+		cairo_line_to(cr, s->max_x, s->max_y);
+		cairo_line_to(cr, 0, s->max_y);
+		cairo_fill(cr);
+	}
+	else {
+		cairo_stroke(cr);
+	}
 }
 
 static void
@@ -150,7 +156,7 @@ draw_overlay (GstElement * overlay, cairo_t * cr, guint64 timestamp,
 
 	/* write it */
 	write_boundary(s, cr);
-	write_graph(s, cr);
+	write_graph(s, cr, false);
 	write_text(s, cr);
 }
 
