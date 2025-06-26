@@ -41,6 +41,7 @@ struct wfb_opt {
 	const char *query_param;
 	const char *mc_port;
 	bool local_play;
+	bool rssi_overlay;
 	bool use_monitor;
 	bool no_fec;
 	bool debug;

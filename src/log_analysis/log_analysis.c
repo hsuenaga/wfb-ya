@@ -59,6 +59,7 @@ print_help(const char *path)
 #endif
 	printf("\t-i [<name>] ... interactive mode."
 	    " file <name> will be loaded.\n");
+	printf("\t-r ... enable RSSI overlay.\n");
 	printf("\t-m ... dump messages.\n");
 	printf("\t-d ... enable debug log.\n");
 	printf("Output Foramt <type>:\n");
@@ -79,7 +80,7 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "f:o:t:w:li:mdh")) != -1) {
+	while ((ch = getopt(argc, argv, "f:o:t:w:li:mrdh")) != -1) {
 		switch (ch) {
 			case 'f':
 				options.file_name_in = optarg;
@@ -125,6 +126,9 @@ parse_options(int *argc0, char **argv0[])
 				break;
 			case 'm':
 				options.dump_message = true;
+				break;
+			case 'r':
+				wfb_options.rssi_overlay = true;
 				break;
 			case 'i':
 				options.interactive = true;

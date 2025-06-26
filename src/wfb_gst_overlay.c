@@ -14,6 +14,7 @@
 #include "wfb_gst.h"
 #include "wfb_gst_overlay.h"
 #include "util_msg.h"
+#include "wfb_params.h"
 
 #include "compat.h"
 
@@ -126,6 +127,8 @@ draw_overlay (GstElement * overlay, cairo_t * cr, guint64 timestamp,
 	int line_width, text_size;
 
 	if (!s->valid)
+		return;
+	if (!wfb_options.rssi_overlay)
 		return;
 
 	/* size of view port */
