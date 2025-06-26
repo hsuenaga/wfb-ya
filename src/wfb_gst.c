@@ -666,10 +666,7 @@ wfb_gst_add_dbm(int8_t dbm, void *arg)
 
 	max = NELEMS(ctx->history);
 
-	for (i = 0; i < (max - 1); i++) {
-		ctx->history[i] = ctx->history[i + 1];
-	}
-	ctx->history[max - 1] = dbm;
+	ctx->history[history_cur++] = dbm;
 }
 
 void

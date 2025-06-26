@@ -31,6 +31,7 @@ struct wfb_gst_context {
 
 	/* Overlay data */
 	int8_t history[OVERLAY_NHIST];
+	int history_cur = 0;
 };
 
 extern int wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file,

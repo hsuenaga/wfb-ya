@@ -55,8 +55,12 @@ write_graph(CairoOverlayState *s, cairo_t *cr)
 
 	cairo_move_to(cr, 0, s->max_y);
 	for (int x = 0; x <= s->max_x; x++) {
+		int idx;
 		int y;
 
+		idx = ctx->history_cur + x + 1;
+		if (idx > NELEMS(ctx->history))
+			idx = 0;
 	       	y = ctx->history[x] + 65;	// add offset: -65dbm => 0
 		y = s->max_y - y;		// invert y
 		y = sat_y(y, 0, s->max_y);	// saturate y
@@ -88,7 +92,7 @@ write_text(CairoOverlayState *s, cairo_t *cr)
 	cairo_show_text(cr, "-65 dbm");
 
 	n = snprintf(buf, sizeof(buf),
-	    "%d [dbm]", ctx->history[NELEMS(ctx->history) - 1]);
+	    "%d [dbm]", ctx->history[ctx->history_cur]);
 	cairo_move_to(cr, (s->max_x - s->text_size * n)/2, s->text_size);
 	cairo_show_text(cr, buf);
 }
