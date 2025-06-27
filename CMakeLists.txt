@@ -8,6 +8,15 @@ if (ENABLE_GSTREAMER)
 	add_definitions(-DENABLE_GSTREAMER)
 endif ()
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	set (CMAKE_EXE_LINKER_FLAGS
+		"${CMAKE_EXE_LINKER_FLAGS} -Wl,-no_warn_duplicate_libraries"
+	)
+	set (CMAKE_SHARED_LINKER_FLAGS
+		"${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_warn_duplicate_libraries"
+	)
+endif ()
+
 ## packages defined by pkg-config
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBEVENT REQUIRED libevent)
