@@ -24,7 +24,7 @@ init_player(struct wfb_gst_context *ctx)
 
 	if (ctx->initialized)
 		return;
-	wfb_gst_context_init(ctx, NULL, false);
+	wfb_gst_context_init_play(ctx);
 	wfb_gst_thread_start(ctx);
 }
 
@@ -35,7 +35,7 @@ init_writer(struct wfb_gst_context *ctx, const char *file, bool enc)
 
 	if (ctx->initialized)
 		return;
-	wfb_gst_context_init(ctx, file, enc);
+	wfb_gst_context_init(ctx, file, enc, false);
 	wfb_gst_thread_start(ctx);
 }
 
@@ -46,6 +46,9 @@ send_data(struct wfb_gst_context *ctx, struct log_store *ls)
 	struct log_data_kv *kv;
 	struct log_data_v *v;
 	bool emulate_tick = true;
+
+	assert(ctx);
+	assert(ls);
 
 	if (ctx->file && !ctx->enc)
 		emulate_tick = false;
@@ -77,9 +80,9 @@ send_data(struct wfb_gst_context *ctx, struct log_store *ls)
 						continue;
 					}
 				}
-				wfb_gst_add_dbm(dbm, &player_ctx);
-				wfb_gst_write(&v->ts,
-				    v->buf, v->size, &player_ctx);
+				wfb_gst_add_dbm(&player_ctx, dbm);
+				wfb_gst_write(&player_ctx,
+				    &v->ts, v->buf, v->size);
 				break;
 			}
 		}
@@ -90,6 +93,8 @@ send_data(struct wfb_gst_context *ctx, struct log_store *ls)
 void
 play_h265(struct log_store *ls)
 {
+	assert(ls);
+
 	init_player(&player_ctx);
 	send_data(&player_ctx, ls);
 }
@@ -98,6 +103,8 @@ void
 write_mp4(const char *file, struct log_store *ls)
 {
 	struct wfb_gst_context ctx;
+
+	assert(ls);
 
 	if (file == NULL) {
 		p_err("Please specify output file name.\n");
@@ -113,6 +120,8 @@ void
 write_mp4_enc(const char *file, struct log_store *ls)
 {
 	struct wfb_gst_context ctx;
+
+	assert(ls);
 
 	if (file == NULL) {
 		p_err("Please specify output file name.\n");

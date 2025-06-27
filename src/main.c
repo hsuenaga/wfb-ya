@@ -322,7 +322,7 @@ _main(int argc, char *argv[])
 	if (wfb_options.local_play) {
 		// Create new thread and waiting for data.
 		p_debug("Initalizing decoder.\n");
-		if (wfb_gst_context_init(&gst_ctx, NULL, false) < 0) {
+		if (wfb_gst_context_init_live(&gst_ctx) < 0) {
 			p_err("Cannot Initialize Decoder\n");
 			exit(0);
 		}
