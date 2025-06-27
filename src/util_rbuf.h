@@ -9,6 +9,7 @@ struct rbuf_block {
 	size_t fragment_used;
 	size_t fragment_to_send;
 	uint8_t **fragment;
+	int8_t *rssi;
 	size_t *fragment_len;
 
 	struct rbuf *rbuf;

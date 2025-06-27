@@ -40,7 +40,8 @@ rx_context_deinitialize(struct rx_context *ctx)
 
 int
 rx_context_set_decode(struct rx_context *ctx,
-    void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg)
+    void (*decode)(int8_t, uint8_t *data, size_t size, void *arg),
+    void *decode_arg)
 {
 	int i;
 
@@ -59,7 +60,7 @@ rx_context_set_decode(struct rx_context *ctx,
 }
 
 void
-rx_decode_frame(struct rx_context *ctx, uint8_t *data, size_t size)
+rx_decode_frame(int8_t rssi, struct rx_context *ctx, uint8_t *data, size_t size)
 {
 	int i;
 
@@ -70,7 +71,7 @@ rx_decode_frame(struct rx_context *ctx, uint8_t *data, size_t size)
 		if (ctx->decode_handler[i].func == NULL)
 			continue;
 
-		ctx->decode_handler[i].func(data, size,
+		ctx->decode_handler[i].func(rssi, data, size,
 		    ctx->decode_handler[i].arg);
 		wfb_stats.decoded_frames++;
 	}

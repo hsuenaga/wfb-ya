@@ -19,7 +19,7 @@ struct rx_mirror_handler {
 };
 
 struct rx_decode_handler {
-	void (*func)(uint8_t *data, size_t size, void *arg);
+	void (*func)(int8_t rssi, uint8_t *data, size_t size, void *arg);
 	void *arg;
 };
 
@@ -84,8 +84,10 @@ rx_get_seq_outer(struct rx_context *ctx)
 extern int rx_context_initialize(struct rx_context *ctx, uint32_t channel_id);
 extern void rx_context_deinitialize(struct rx_context *ctx);
 extern int rx_context_set_decode(struct rx_context *ctx,
-    void (*decode)(uint8_t *data, size_t size, void *arg), void *decode_arg);
-extern void rx_decode_frame(struct rx_context *ctx, uint8_t *data, size_t size);
+    void (*decode)(int8_t, uint8_t *data, size_t size, void *arg),
+    void *decode_arg);
+extern void rx_decode_frame(int8_t rssi,
+    struct rx_context *ctx, uint8_t *data, size_t size);
 extern int rx_context_set_mirror(struct rx_context *ctx,
     void (*mirror)(struct iovec *iov, int iovcnt, void *arg), void *decode_arg);
 extern void rx_mirror_frame(struct rx_context *ctx, uint8_t *data, size_t size);

@@ -35,8 +35,10 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 	uint16_t pktlen;
 	bool is_fec;
 	uint64_t seq;
+	int8_t rssi;
 
 	hdr = (struct wfb_data_hdr *)blk->fragment[blk->fragment_to_send];
+	rssi = blk->rssi[blk->fragment_to_send];
 	pktlen = be16toh(hdr->packet_size);
 	is_fec = (blk->fragment_len[blk->fragment_to_send] == 0);
 	seq = blk_get_seq(ctx, blk);
@@ -57,7 +59,7 @@ send_data_one(struct rx_context *ctx, struct rbuf_block *blk)
 	}
 
 	if (ctx->n_decode_handler > 0)
-		rx_decode_frame(ctx, (uint8_t *)(hdr + 1), pktlen);
+		rx_decode_frame(rssi, ctx, (uint8_t *)(hdr + 1), pktlen);
 	else
 		p_debug("Received %" PRIu64 ": %d bytes, BLK %" PRIu64
 		    ", FRAG %02zx, FEC: %s\n",
@@ -243,6 +245,8 @@ rx_data(struct rx_context *ctx)
 	blk = rbuf_get_block(ctx->rx_ring, ctx->wfb.block_idx);
 	if (blk == NULL)
 		return 0; // the frame is out of window. silent discard.
+	if (blk->rssi[fragment_idx] < ctx->dbm)
+		blk->rssi[fragment_idx] = ctx->dbm;
 	if (blk->fragment_len[fragment_idx] != 0)
 		return 0; // duplicated frame. silent discard.
 	

@@ -19,6 +19,7 @@ struct wfb_gst_context {
 	int bus_watch_id;
 	bool initialized;
 	bool closing;
+	bool eos_detected;
 	bool enc;
 	const char *file;
 
@@ -46,4 +47,6 @@ extern int wfb_gst_thread_join(struct wfb_gst_context *ctx);
 extern void wfb_gst_add_dbm(int8_t dbm, void *arg);
 extern void wfb_gst_write(struct timespec *ts, uint8_t *data, size_t size, void *arg);
 extern void wfb_gst_eos(void *arg);
+
+extern void wfb_gst_handler(int8_t rssi, uint8_t *data, size_t size, void *arg);
 #endif /* __WFB_GST_H__ */

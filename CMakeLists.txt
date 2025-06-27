@@ -112,19 +112,25 @@ set (wfb_listener_cflags
 if (ENABLE_GSTREAMER)
 	set (wfb_listener_srcs
 		${wfb_listener_srcs}
-		src/decode_h265.c
+		src/wfb_gst.c
+		src/wfb_gst_overlay.c
 	)
 	set (wfb_listener_incs
 		${wfb_listener_incs}
 		${GSTREAMER_INCLUDE_DIRS}
+		${CAIRO_INCLUDE_DIRS}
 	)
 	set (wfb_listener_libdirs
 		${wfb_listener_libdirs}
 		${GSTREAMER_LIBRARY_DIRS}
+		${CAIRO_LIBRARY_DIRS}
 	)
 	set (wfb_listener_libs
 		${wfb_listener_libs}
 		${GSTREAMER_LIBRARIES}
+		${GSTREAMER_APP_LIBRARIES}
+		${GSTREAMER_VIDEO_LIBRARIES}
+		${CAIRO_LIBRARIES}
 	)
 	set (wfb_listener_cflags
 		${wfb_listener_cflags}

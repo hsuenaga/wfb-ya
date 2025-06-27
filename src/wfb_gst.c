@@ -55,7 +55,6 @@ check_state(struct wfb_gst_context *ctx)
 	GstState state, pending;
 	GstClockTime to = 1000 * 1000; /* [ns] */
 
-	p_err("Check\n");
 retry:
 	rc = gst_element_get_state(ctx->pipeline,
 	    &state, &pending, to);
@@ -67,7 +66,6 @@ retry:
 		p_err("%s => %s\n", s_state(state), s_state(pending));
 		goto retry;
 	}
-	p_err("OK\n");
 
 	return state;
 }
@@ -182,7 +180,10 @@ bus_call(GstBus *bus, GstMessage *msg, gpointer arg)
 			break;
 		case GST_MESSAGE_EOS:
 			p_info("End-Of-Stream reached.\n");
+			pthread_mutex_lock(&ctx->lock);
 			pthread_cond_signal(&ctx->eos);
+			ctx->eos_detected = true;
+			pthread_mutex_unlock(&ctx->lock);
 			break;
 		case GST_MESSAGE_NEW_CLOCK:
 			gst_message_parse_new_clock(msg, &clock);
@@ -419,7 +420,7 @@ int
 wfb_gst_init_sink(struct wfb_gst_context *ctx, const char *file, bool enc)
 {
 	GstElement *e, *last = NULL;
-	GstPad *src, *sink;
+	GstPad *sink;
 	assert(ctx);
 
 	ctx->sink = gst_bin_new("wfb_sink");
@@ -664,12 +665,9 @@ void
 wfb_gst_add_dbm(int8_t dbm, void *arg)
 {
 	struct wfb_gst_context *ctx = arg;
-	int i, max;
-
-	max = NELEMS(ctx->history);
 
 	ctx->history[ctx->history_cur++] = dbm;
-	if (ctx->history_cur > sizeof(ctx->history))
+	if (ctx->history_cur >= sizeof(ctx->history))
 		ctx->history_cur = 0;
 }
 
@@ -678,20 +676,20 @@ wfb_gst_write(struct timespec *ts, uint8_t *data, size_t size, void *arg)
 {
 	struct wfb_gst_context *ctx = arg;
 	GstBuffer *buf;
-	int ret;
 
 	assert(ctx);
 
 	if (!ctx->initialized)
 		return;
-	if (ts == NULL || data == NULL || size == 0)
+	if (data == NULL || size == 0)
 		return;
 
 	change_state(ctx, GST_STATE_PLAYING);
 
 	buf = gst_buffer_new_memdup(data, size);
 	assert(buf);
-	set_timestamp(buf, ts);
+	if (ts)
+		set_timestamp(buf, ts);
 
 	gst_app_src_push_buffer(GST_APP_SRC(ctx->appsrc), buf);
 	// buf's ownerhsip is taken by library now.
@@ -710,6 +708,20 @@ wfb_gst_eos(void *arg)
 		return;
 
 	gst_app_src_end_of_stream(GST_APP_SRC(ctx->appsrc));
-	pthread_cond_wait(&ctx->eos, &ctx->lock);
+	pthread_mutex_lock(&ctx->lock);
+	while (!ctx->eos_detected)
+		pthread_cond_wait(&ctx->eos, &ctx->lock);
+	pthread_mutex_unlock(&ctx->lock);
 	ensure_state(ctx, GST_STATE_READY);
+}
+
+void
+wfb_gst_handler(int8_t rssi, uint8_t *data, size_t size, void *arg)
+{
+	struct wfb_gst_context *ctx = (struct wfb_gst_context *)arg;
+
+	assert(ctx);
+
+	wfb_gst_add_dbm(rssi, ctx);
+	wfb_gst_write(NULL, data, size, ctx);
 }

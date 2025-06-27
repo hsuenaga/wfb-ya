@@ -28,7 +28,7 @@
 #include "fec_wfb.h"
 #include "wfb_ipc.h"
 #ifdef ENABLE_GSTREAMER
-#include "decode_h265.h"
+#include "wfb_gst.h"
 #endif
 
 #include "util_msg.h"
@@ -65,7 +65,7 @@ print_help(const char *path)
 	printf("\t%s [-w <dev>] [-e <dev>] [-E <dev>]\n", name);
         printf("\t[-a <addr>] [-p <port>] [-k <file>]\n");
 	printf("\t[-P <pid_file>] [-S <ipc_socket>]\n");
-	printf("\t[-s <param>]\n");
+	printf("\t[-s <param>] [-r]\n");
 	printf("\t[-l] [-m] [-n] [-d] [-D] [-s] [-h]\n");
 	printf("Options:\n");
 	printf("\t-w <dev> ... specify Wireless Rx device. default: %s\n",
@@ -86,6 +86,7 @@ print_help(const char *path)
 	    DEF_CTRL_FILE ? DEF_CTRL_FILE : "none");
 #ifdef ENABLE_GSTREAMER
 	printf("\t-l ... enable local play. default: disable\n");
+	printf("\t-r ... enable rssi overlay. default: disable\n");
 #endif
 	printf("\t-L ... traffic log file name. default: (none)\n");
 	printf("\t-m ... use RFMonitor mode instead of Promiscous mode.\n");
@@ -151,7 +152,7 @@ parse_options(int *argc0, char **argv0[])
 	char **argv = *argv0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:L:P:S:s:DKlmndh")) != -1) {
+	while ((ch = getopt(argc, argv, "w:e:E:a:p:k:L:P:S:s:DKlrmndh")) != -1) {
 		switch (ch) {
 			case 'w':
 				wfb_options.rx_wired = NULL;
@@ -176,6 +177,14 @@ parse_options(int *argc0, char **argv0[])
 			case 'l':
 #ifdef ENABLE_GSTREAMER
 				wfb_options.local_play = true;
+#else
+				fprintf(stderr, "gstreamer is disabled by compile option.\n");
+				exit(0);
+#endif
+				break;
+			case 'r':
+#ifdef ENABLE_GSTREAMER
+				wfb_options.rssi_overlay = true;
 #else
 				fprintf(stderr, "gstreamer is disabled by compile option.\n");
 				exit(0);
@@ -244,7 +253,7 @@ _main(int argc, char *argv[])
 	struct netinet_tx_context intx_ctx;
 	struct rx_context rx_ctx;
 #ifdef ENABLE_GSTREAMER
-	struct decode_h265_context d_ctx;
+	struct wfb_gst_context gst_ctx;
 #endif
 	uint32_t wfb_ch = 0;
 	int fd;
@@ -313,15 +322,16 @@ _main(int argc, char *argv[])
 	if (wfb_options.local_play) {
 		// Create new thread and waiting for data.
 		p_debug("Initalizing decoder.\n");
-		if (decode_h265_context_init(&d_ctx) < 0) {
+		if (wfb_gst_context_init(&gst_ctx, NULL, false) < 0) {
 			p_err("Cannot Initialize Decoder\n");
 			exit(0);
 		}
-		if (decode_h265_thread_start(&d_ctx) < 0) {
+		if (wfb_gst_thread_start(&gst_ctx) < 0) {
 			p_err("Cannot Start Decoder thread\n");
 			exit(0);
 		}
-		if (rx_context_set_decode(&rx_ctx, decode_h265, &d_ctx) < 0) {
+		if (rx_context_set_decode(&rx_ctx,
+		    wfb_gst_handler, &gst_ctx) < 0) {
 			p_err("Cannot Attach Decoder\n");
 			exit(0);
 		}
@@ -357,7 +367,8 @@ _main(int argc, char *argv[])
 #ifdef ENABLE_GSTREAMER
 	if (wfb_options.local_play) {
 		p_debug("Waiting for local_play thread complete.\n");
-		decode_h265_thread_join(&d_ctx);
+		wfb_gst_eos(&gst_ctx);
+		wfb_gst_thread_join(&gst_ctx);
 		p_debug("local_play thread completed.\n");
 	}
 #endif

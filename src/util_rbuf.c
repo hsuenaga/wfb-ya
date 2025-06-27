@@ -43,10 +43,13 @@ rbuf_alloc(size_t ring_size, size_t frag_size, size_t nfrag)
 			if (blk->fragment[j] == NULL)
 				goto err;
 		}
-		blk->fragment_len =
-		    (size_t *)calloc(nfrag, sizeof(size_t));
+		blk->fragment_len = (size_t *)calloc(nfrag, sizeof(size_t));
 		if (blk->fragment_len == NULL)
 			goto err;
+		blk->rssi = (int8_t *)malloc(nfrag);
+		if (blk->rssi == NULL)
+			goto err;
+		memset(blk->rssi, INT8_MIN, sizeof(int8_t) * nfrag);
 		blk->rbuf = rbuf;
 	}
 
@@ -80,6 +83,8 @@ rbuf_free(struct rbuf *rbuf)
 			}
 			if (blk->fragment_len)
 				free(blk->fragment_len);
+			if (blk->rssi)
+				free(blk->rssi);
 		}
 		free(rbuf->blocks);
 	}
@@ -134,6 +139,8 @@ rbuf_get_block(struct rbuf *rbuf, uint64_t block_idx)
 		blk->fragment_to_send = 0;
 		memset(blk->fragment_len, 0,
 		    sizeof(size_t) * rbuf->fragment_nof);
+		memset(blk->rssi,
+		    INT8_MIN, sizeof(int8_t) * rbuf->fragment_nof);
 		rbuf->ring_alloc++;
 	}
 

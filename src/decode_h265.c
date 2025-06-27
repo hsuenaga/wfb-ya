@@ -247,7 +247,7 @@ decode_h265_thread_join(struct decode_h265_context *ctx)
 }
 
 void
-decode_h265(uint8_t *data, size_t size, void *arg)
+decode_h265(int8_t rssi, uint8_t *data, size_t size, void *arg)
 {
 	struct decode_h265_context *ctx = arg;
 	GstBuffer *buf;
@@ -277,5 +277,6 @@ decode_h265(uint8_t *data, size_t size, void *arg)
 	gst_buffer_unref(buf);
 
 	pthread_mutex_unlock(&ctx->lock);
+
 	return;
 }
