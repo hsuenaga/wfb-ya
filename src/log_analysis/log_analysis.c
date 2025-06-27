@@ -113,7 +113,7 @@ parse_options(int *argc0, char **argv0[])
 					fprintf(stderr,
 					    "Invalid output type %s.\n",
 					    optarg);
-					exit(0);
+					exit(EXIT_FAILURE);
 				}
 				break;
 			case 'l':
@@ -138,10 +138,12 @@ parse_options(int *argc0, char **argv0[])
 				wfb_options.debug = 1;
 				break;
 			case 'h':
+				print_help(argv[0]);
+				exit(EXIT_SUCCESS);
 			case '?':
 			default:
 				print_help(argv[0]);
-				exit(0);
+				exit(EXIT_FAILURE);
 		}
 	}
 	argc -= optind;
@@ -162,23 +164,23 @@ _main(int argc, char *argv[])
 
 	if (options.interactive) {
 		if (shell(options.file_name_in) < 0)
-			exit(0);
+			exit(EXIT_FAILURE);
 
-		exit(1);
+		exit(EXIT_SUCCESS);
 	}
 
 	if (options.file_name_in) {
 		fp_in = fopen(options.file_name_in, "r");
 		if (fp_in == NULL) {
 			p_err("Invalid file name: %s\n", options.file_name_in);
-			exit(0);
+			exit(EXIT_FAILURE);
 		}
 	}
 	if (options.file_name_out && !options.local_play) {
 		fp_out = fopen(options.file_name_out, "w");
 		if (fp_out == NULL) {
 			p_err("Invalid file name: %s\n", options.file_name_out);
-			exit(0);
+			exit(EXIT_FAILURE);
 		}
 	}
 
@@ -187,19 +189,19 @@ _main(int argc, char *argv[])
 		fclose(fp_in);
 	if (ls == NULL) {
 		p_err("Invalid log file.\n");
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
 
 #ifdef ENABLE_GSTREAMER
 	if (options.local_play) {
 		play_h265(ls);
-		exit(1);
+		exit(EXIT_SUCCESS);
 	}
 #endif
 
 	if (options.dump_message) {
 		dump_message(fp_out, ls);
-		exit(1);
+		exit(EXIT_SUCCESS);
 	}
 
 	switch (options.out_type) {
@@ -227,7 +229,7 @@ _main(int argc, char *argv[])
 			break;
 	}
 
-	exit(1);
+	exit(EXIT_SUCCESS);
 }
 
 int

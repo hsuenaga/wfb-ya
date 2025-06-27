@@ -179,7 +179,7 @@ parse_options(int *argc0, char **argv0[])
 				wfb_options.local_play = true;
 #else
 				fprintf(stderr, "gstreamer is disabled by compile option.\n");
-				exit(0);
+				exit(EXIT_FAILURE);
 #endif
 				break;
 			case 'r':
@@ -187,7 +187,7 @@ parse_options(int *argc0, char **argv0[])
 				wfb_options.rssi_overlay = true;
 #else
 				fprintf(stderr, "gstreamer is disabled by compile option.\n");
-				exit(0);
+				exit(EXIT_FAILURE);
 #endif
 				break;
 			case 'D':
@@ -218,10 +218,12 @@ parse_options(int *argc0, char **argv0[])
 				wfb_options.query_param = optarg;
 				break;
 			case 'h':
+				print_help(argv[0]);
+				exit(EXIT_SUCCESS);
 			case '?':
 			default:
 				print_help(argv[0]);
-				exit(0);
+				exit(EXIT_FAILURE);
 		}
 	}
 	argc -= optind;
@@ -236,7 +238,7 @@ parse_options(int *argc0, char **argv0[])
 
 	if (!wfb_options.rx_wireless && !wfb_options.rx_wired) {
 		fprintf(stderr, "Please specify at least one Rx device.\n");
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
 
 	return;
@@ -263,49 +265,49 @@ _main(int argc, char *argv[])
 
 	if (wfb_options.kill_daemon) {
 		if (kill_daemon(wfb_options.pid_file) < 0)
-			exit(0);
-		exit(1);
+			exit(EXIT_FAILURE);
+		exit(EXIT_SUCCESS);
 	}
 
 	if (wfb_options.query_param) {
 		if (ipc_tx(wfb_options.ctrl_file, wfb_options.query_param) < 0)
-			exit(0);
-		exit(1);
+			exit(EXIT_FAILURE);
+		exit(EXIT_SUCCESS);
 	}
 
 	if (wfb_options.daemon) {
 		if (create_daemon(wfb_options.pid_file) < 0)
-			exit(0);
+			exit(EXIT_FAILURE);
 	}
 
 	p_debug("Initalizing netcore.\n");
 	if (netcore_initialize(&net_ctx) < 0) {
 		p_err("Cannot Initialize netcore\n");
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
 
 	p_debug("Initializing IPC.\n");
 	if (ipc_rx_initialize(&ipc_ctx, &net_ctx, wfb_options.ctrl_file) < 0) {
 		p_err("Cannot Initialize IPC.\n");
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
 
 	p_debug("Initalizing crypto.\n");
 	if (crypto_wfb_init(wfb_options.key_file) < 0) {
 		p_err("Cannot Initialize crypto\n");
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
 
 	p_debug("Initalizing fec.\n");
 	if (fec_wfb_init() < 0) {
 		p_err("Cannot Initialize FEC\n");
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
 
 	p_debug("Initalizing rx parser.\n");
 	if (rx_context_initialize(&rx_ctx, wfb_ch) < 0) {
 		p_err("Cannot Initialize Rx.\n");
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
 	msg_set_hook(rx_log_hook, &rx_ctx);
 
@@ -314,7 +316,7 @@ _main(int argc, char *argv[])
 		netinet_tx_initialize(&intx_ctx, &net_ctx, wfb_options.tx_wired);
 		if (rx_context_set_mirror(&rx_ctx, netinet_tx, &intx_ctx) < 0) {
 			p_err("Cannot Attach NetRx\n");
-			exit(0);
+			exit(EXIT_FAILURE);
 		}
 	}
 
@@ -324,16 +326,16 @@ _main(int argc, char *argv[])
 		p_debug("Initalizing decoder.\n");
 		if (wfb_gst_context_init_live(&gst_ctx) < 0) {
 			p_err("Cannot Initialize Decoder\n");
-			exit(0);
+			exit(EXIT_FAILURE);
 		}
 		if (wfb_gst_thread_start(&gst_ctx) < 0) {
 			p_err("Cannot Start Decoder thread\n");
-			exit(0);
+			exit(EXIT_FAILURE);
 		}
 		if (rx_context_set_decode(&rx_ctx,
 		    wfb_gst_handler, &gst_ctx) < 0) {
 			p_err("Cannot Attach Decoder\n");
-			exit(0);
+			exit(EXIT_FAILURE);
 		}
 	}
 #endif
@@ -344,7 +346,7 @@ _main(int argc, char *argv[])
 		    wfb_options.rx_wireless, wfb_options.use_monitor);
 		if (fd < 0) {
 			p_err("Cannot Initialize PCAP Rx\n");
-			exit(0);
+			exit(EXIT_FAILURE);
 		}
 	}
 
@@ -354,7 +356,7 @@ _main(int argc, char *argv[])
 		    wfb_options.rx_wired);
 		if (fd < 0) {
 			p_err("Cannot Initialize Inet6 Rx\n");
-			exit(0);
+			exit(EXIT_FAILURE);
 		}
 	}
 
@@ -390,7 +392,7 @@ _main(int argc, char *argv[])
 	netcore_deinitialize(&net_ctx);
 
 	// XXX: more cleanup
-	exit(1);
+	exit(EXIT_SUCCESS);
 }
 
 int

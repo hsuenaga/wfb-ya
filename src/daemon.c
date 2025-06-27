@@ -177,7 +177,7 @@ create_daemon(const char *pid_file)
 		return -1;
 	}
 	if (pid > 0) {
-		exit(1);
+		exit(EXIT_SUCCESS);
 	}
 
 	if (create_pid_file(pid_file) < 0)
