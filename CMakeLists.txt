@@ -30,8 +30,10 @@ if (ENABLE_GSTREAMER)
 	pkg_check_modules(GSTREAMER_APP REQUIRED gstreamer-app-1.0)
 	# libgstreamer-plugins-base1.0-dev
 	pkg_check_modules(GSTREAMER_VIDEO REQUIRED gstreamer-video-1.0)
-	# cairo
-	#pkg_check_modules(CAIRO REQUIRED cairo)
+	if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+		# cairo
+		pkg_check_modules(CAIRO REQUIRED cairo)
+	endif ()
 endif ()
 
 ## libyaml
