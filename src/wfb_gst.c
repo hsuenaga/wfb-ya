@@ -371,6 +371,9 @@ wfb_gst_init_codec(struct wfb_gst_context *ctx,
 
 	ctx->codec = gst_bin_new("wfb_decoder");
 
+	if (live)
+		goto skip_parser;
+
 	/* stream parser */
 	e = gst_element_factory_make("h265parse", "wfb_h265");
 	if (e == NULL)
@@ -400,6 +403,7 @@ wfb_gst_init_codec(struct wfb_gst_context *ctx,
 		goto add_pad;
 	}
 
+skip_parser:
 	/* try Video4Linux */
 	e = gst_element_factory_make("v4l2slh265dec", "h265");
 	if (e) {
@@ -442,7 +446,7 @@ finish:
 add_pad:
 	sink = gst_element_get_static_pad(first, "sink");
 	if (sink == NULL) {
-		p_err("Cannot get sink pad from h265parse\n");
+		p_err("Cannot get sink pad.\n");
 		return -1;
 	}
 	gst_element_add_pad(ctx->codec, gst_ghost_pad_new("sink", sink));
@@ -468,27 +472,29 @@ wfb_gst_init_rtp(struct wfb_gst_context *ctx,
 
 	ctx->rtp = gst_bin_new("wfb_rtp_parser");
 
-	if (!live) {
-		/* remove jitters */
-		e = gst_element_factory_make("rtpjitterbuffer", "wfb_jitbuf");
-		if (e == NULL) {
-			p_err("Cannot create jitter buffer\n");
-			return -1;
-		}
-		g_object_set(e, "latency", 10, NULL); // [ms]
-		gst_bin_add(GST_BIN(ctx->rtp), e);
-		sink = gst_element_get_static_pad(e, "sink");
-		if (sink == NULL) {
-			p_err("Cannot get sink pad from h265parse\n");
-			return -1;
-		}
-		first = first ? first : e;
-		if (last) {
-			gst_element_link(last, e);
-		}
-		last = e;
-	}
+	if (live)
+		goto skip_jitterbuf;
 
+	/* remove jitters */
+	e = gst_element_factory_make("rtpjitterbuffer", "wfb_jitbuf");
+	if (e == NULL) {
+		p_err("Cannot create jitter buffer\n");
+		return -1;
+	}
+	g_object_set(e, "latency", 10, NULL); // [ms]
+	gst_bin_add(GST_BIN(ctx->rtp), e);
+	sink = gst_element_get_static_pad(e, "sink");
+	if (sink == NULL) {
+		p_err("Cannot get sink pad from h265parse\n");
+		return -1;
+	}
+	first = first ? first : e;
+	if (last) {
+		gst_element_link(last, e);
+	}
+	last = e;
+
+skip_jitterbuf:
 	/* depayload */
 	e = gst_element_factory_make("rtph265depay", "wfb_rtpdepay");
 	if (e == NULL) {
@@ -600,7 +606,7 @@ wfb_gst_init_sink(struct wfb_gst_context *ctx,
 		return 0;
 	}
 
-	/* dispaly sink */
+	/* Dispaly sink */
 	e = gst_element_factory_make("queue", "wfb_sinkqueue");
 	if (e == NULL) {
 		p_err("Cannot allocate queue.\n");
