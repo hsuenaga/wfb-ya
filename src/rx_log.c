@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <sys/stat.h>
 
@@ -174,6 +175,11 @@ rx_log_create(struct rx_context *ctx)
 	else {
 		p_err("Failed to create File %s: %s\n",
 		    log->file_name, strerror(errno));
+		return;
+	}
+
+	if (fcntl(fileno(log->fp), F_SETFD, FD_CLOEXEC) < 0) {
+		p_err("fcntl(F_SETFD) failed: %s\n", strerror(errno));
 		return;
 	}
 

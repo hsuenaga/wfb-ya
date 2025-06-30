@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <ifaddrs.h>
+#include <fcntl.h>
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -481,11 +482,7 @@ inet_rx_socket(const char *s_addr, const char *s_port, const char *s_dev,
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
-#ifdef SOCK_CLOEXEC
-	hints.ai_socktype = SOCK_DGRAM | SOCK_CLOEXEC;
-#else
 	hints.ai_socktype = SOCK_DGRAM;
-#endif
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_flags = AI_PASSIVE;
 	if (!wfb_options.use_dns) {
@@ -501,6 +498,12 @@ inet_rx_socket(const char *s_addr, const char *s_port, const char *s_dev,
 		s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 		if (s < 0) {
 			p_err("socket() failed: %s\n", strerror(errno));
+			freeaddrinfo(res);
+			return -1;
+		}
+
+		if (fcntl(s, F_SETFD, FD_CLOEXEC) < 0) {
+			p_err("fcntl(F_SETFD) failed: %s\n", strerror(errno));
 			freeaddrinfo(res);
 			return -1;
 		}
@@ -553,11 +556,7 @@ inet_tx_socket(const char *s_addr, const char *s_port, const char *s_dev,
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
-#ifdef SOCK_CLOEXEC
-	hints.ai_socktype = SOCK_DGRAM | SOCK_CLOEXEC;
-#else
 	hints.ai_socktype = SOCK_DGRAM;
-#endif
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_flags = 0;
 	if (!wfb_options.use_dns) {
@@ -573,6 +572,12 @@ inet_tx_socket(const char *s_addr, const char *s_port, const char *s_dev,
 		s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 		if (s < 0) {
 			p_err("socket() failed: %s\n", strerror(errno));
+			freeaddrinfo(res);
+			return -1;
+		}
+
+		if (fcntl(s, F_SETFD, FD_CLOEXEC) < 0) {
+			p_err("fcntl(F_SETFD) failed: %s\n", strerror(errno));
 			freeaddrinfo(res);
 			return -1;
 		}

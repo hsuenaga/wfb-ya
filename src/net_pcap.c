@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <fcntl.h>
 #include <assert.h>
 
 #include <pcap.h>
@@ -141,7 +142,7 @@ netpcap_initialize(struct netpcap_context *ctx,
 		goto err;
 	}
 	if (pcap_setnonblock(pcap, 1, errbuf) != 0) {
-		p_err("Cannot activate: %s\n", errbuf);
+		p_err("Cannot set nonblocking mode: %s\n", errbuf);
 		goto err;
 	}
 
@@ -161,6 +162,11 @@ netpcap_initialize(struct netpcap_context *ctx,
 
 	ctx->pcap = pcap;
 	ctx->fd = pcap_get_selectable_fd(pcap);
+	if (fcntl(ctx->fd, F_SETFD, FD_CLOEXEC) < 0) {
+		p_err("fcntl(F_SETFD) failed: %s\n", strerror(errno));
+		goto err;
+	}
+
 	ctx->ev = netcore_rx_event_add(net_ctx, ctx->fd, netpcap_rx, ctx);
 	if (ctx->ev == NULL) {
 		p_err("Cannot register event.^n");

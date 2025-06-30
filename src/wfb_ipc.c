@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <assert.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -231,6 +232,11 @@ ipc_create_socket(void)
 	s = socket(AF_LOCAL, SOCK_STREAM, 0);
 	if (s < 0) {
 		p_err("socket() failed: %s.\n", strerror(errno));
+		return -1;
+	}
+
+	if (fcntl(s, F_SETFD, FD_CLOEXEC) < 0) {
+		p_err("fcntl() failed: %s.\n", strerror(errno));
 		return -1;
 	}
 
