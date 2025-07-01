@@ -174,7 +174,8 @@ target_compile_options(wfb_listener PUBLIC
 install(TARGETS wfb_listener
 )
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-	install(CODE "execute_process (COMMAND setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' $<TARGET_FILE:wfb_listener>)"
+	set(capstring "CAP_NET_RAW+eip CAP_NET_ADMIN+eip")
+	install(CODE "execute_process (COMMAND setcap ${capstring} $<TARGET_FILE:wfb_listener>)"
 )
 endif ()
 
