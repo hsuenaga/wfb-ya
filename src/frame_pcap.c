@@ -19,7 +19,7 @@ pcap_context_dump(struct pcap_context *ctx)
 {
 	assert(ctx);
 
-	p_info("Capture Data: 0x%p\n", ctx->data);
+	p_info("Capture Data: %p\n", ctx->data);
 	p_info("Capture Length: %u\n", ctx->caplen);
 }
 

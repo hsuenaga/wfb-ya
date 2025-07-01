@@ -77,6 +77,9 @@ ieee80211_context_dump(const struct ieee80211_context *ctx)
 {
 	assert(ctx);
 
+	if (ctx->hdr == NULL)
+		return;
+
 	p_info("DST: %s\n", s_mac48(ctx->hdr->u.base3.addr1));
 	p_info("SRC: %s\n", s_mac48(ctx->hdr->u.base3.addr2));
 	p_info("BSS: %s\n", s_mac48(ctx->hdr->u.base3.addr3));

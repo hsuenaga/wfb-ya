@@ -257,8 +257,8 @@ rx_data(struct rx_context *ctx)
 	    (uint8_t *)ctx->wfb.hdr, ctx->wfb.pktlen, ctx->wfb.hdrlen,
 	    (uint8_t *)ctx->wfb.nonce) < 0) {
 		// invalidate session
-		rx_context_dump(ctx);
 		ctx->has_session_key = false;
+		rx_context_dump(ctx);
 		return -1;
 	}
 

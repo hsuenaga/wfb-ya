@@ -84,16 +84,24 @@ radiotap_context_dump(const struct radiotap_context *ctx)
 		return;
 	}
 
-	p_info("TSFT: %" PRIu64 "\n", le64toh(*ctx->raw.tsft));
-	p_info("FLAGS: 0x%02x\n", *ctx->raw.flags);
-	p_info("CHANNEL %d MHz, Flags 0x%04x\n",
-	    le16toh(ctx->raw.channel->freq),
-	    le16toh(ctx->raw.channel->flags));
-	p_info("DBM_SIGNAL: %d\n", *ctx->raw.dbm_antenna_signal);
-	p_info("ANTENNA: %u\n", *ctx->raw.antenna);
-	p_info("RX_FLAGS: 0x%04x\n", le16toh(*ctx->raw.rx_flags));
-	p_info("MCS: 0x%02x, 0x%02x, %d\n",
-	    ctx->raw.mcs->known, ctx->raw.mcs->flags, ctx->raw.mcs->index);
+	if (ctx->raw.tsft)
+		p_info("TSFT: %" PRIu64 "\n", le64toh(*ctx->raw.tsft));
+	if (ctx->raw.flags)
+		p_info("FLAGS: 0x%02x\n", *ctx->raw.flags);
+	if (ctx->raw.channel)
+		p_info("CHANNEL %d MHz, Flags 0x%04x\n",
+		    le16toh(ctx->raw.channel->freq),
+		    le16toh(ctx->raw.channel->flags));
+	if (ctx->raw.dbm_antenna_signal)
+		p_info("DBM_SIGNAL: %d\n", *ctx->raw.dbm_antenna_signal);
+	if (ctx->raw.antenna)
+		p_info("ANTENNA: %u\n", *ctx->raw.antenna);
+	if (ctx->raw.rx_flags)
+		p_info("RX_FLAGS: 0x%04x\n", le16toh(*ctx->raw.rx_flags));
+	if (ctx->raw.mcs)
+		p_info("MCS: 0x%02x, 0x%02x, %d\n",
+		    ctx->raw.mcs->known,
+		    ctx->raw.mcs->flags, ctx->raw.mcs->index);
 }
 
 ssize_t

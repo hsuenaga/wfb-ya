@@ -31,6 +31,9 @@ wfb_context_dump(const struct wfb_context *ctx)
 {
 	assert(ctx);
 
+	if (ctx->hdr == NULL)
+		return;
+
 	p_info("WFB Pcaket Type: %s\n", s_packet_type(ctx->hdr->packet_type));
 	p_info("WFB Nonce: %s\n", s_binary(ctx->nonce, ctx->noncelen));
 	p_info("WFB Data Block Index: %" PRIu64 "\n", ctx->block_idx);
