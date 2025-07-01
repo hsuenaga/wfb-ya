@@ -153,9 +153,6 @@ add_executable(wfb_listener
 	${wfb_listener_srcs}
 )
 
-install(TARGETS wfb_listener
-)
-
 set_target_properties(wfb_listener PROPERTIES C_STANDARD 99)
 
 target_include_directories(wfb_listener PUBLIC
@@ -173,6 +170,13 @@ target_link_libraries(wfb_listener
 target_compile_options(wfb_listener PUBLIC
 	${wfb_listener_cflags}
 )
+
+install(TARGETS wfb_listener
+)
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	install(CODE "execute_process (COMMAND setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' $<TARGET_FILE:wfb_listener>)"
+)
+endif ()
 
 set(wfb_log_analysis_srcs
 	src/log_analysis/log_analysis.c
@@ -244,9 +248,5 @@ target_link_libraries(wfb_log_analysis PRIVATE
 	yyjson
 )
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-	add_custom_target(set_cap
-		sudo setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' wfb_listener
-	)
-endif ()
-
+install(TARGETS wfb_log_analysis
+)
