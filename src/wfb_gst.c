@@ -361,107 +361,6 @@ wfb_gst_init_source(struct wfb_gst_context *ctx,
 }
 
 static int
-wfb_gst_init_codec(struct wfb_gst_context *ctx,
-    const char *file, bool enc, bool live)
-{
-	GstElement *e, *first = NULL, *last = NULL;
-	GstPad *src, *sink;
-
-	assert(ctx);
-
-	ctx->codec = gst_bin_new("wfb_decoder");
-
-	if (live)
-		goto skip_parser;
-
-	/* stream parser */
-	e = gst_element_factory_make("h265parse", "wfb_h265");
-	if (e == NULL)
-		return -1;
-	g_object_set(e, "config-interval", 1, NULL);
-	gst_bin_add(GST_BIN(ctx->codec), e);
-	first = first ? first : e;
-	if (last) {
-		gst_element_link(last, e);
-	}
-	last = e;
-
-	/* update timestamp */
-	e = gst_element_factory_make("h265timestamper", "wfb_timestamp");
-	if (e == NULL)
-		return -1;
-	gst_bin_add(GST_BIN(ctx->codec), e);
-	first = first ? first : e;
-	if (last) {
-		gst_element_link(last, e);
-	}
-	last = e;
-
-	/* passthrough for file output */
-	if (file && !enc) {
-		p_info("Using h265parse(no decoding)\n");
-		goto add_pad;
-	}
-
-skip_parser:
-	/* try Video4Linux */
-	e = gst_element_factory_make("v4l2slh265dec", "h265");
-	if (e) {
-		p_info("Uisng v4l2slh265dec\n");
-		goto finish;
-	}
-
-	/* try VideoToolkit */
-	e = gst_element_factory_make("vtdec", "h265");
-	if (e) {
-		g_object_set(e, "discard-corrupted-frames", FALSE, NULL);
-		p_info("Using vtdec\n");
-		goto finish;
-	}
-
-	/* try ffmpeg */
-	e = gst_element_factory_make("avdec_h265", "h265");
-	if (e) {
-		p_info("Uisng avdec_h265\n");
-		goto finish;
-	}
-
-	/* fallback to pure software codec */
-	e = gst_element_factory_make("libde265dec", "h265");
-	if (e) {
-		p_info("Uisng libde265dec\n");
-		goto finish;
-	}
-
-	p_err("Cannot find H.265 codec.\n");
-	return -1;
-finish:
-	gst_bin_add(GST_BIN(ctx->codec), e);
-	first = first ? first : e;
-	if (last) {
-		gst_element_link(last, e);
-	}
-	last = e;
-
-add_pad:
-	sink = gst_element_get_static_pad(first, "sink");
-	if (sink == NULL) {
-		p_err("Cannot get sink pad.\n");
-		return -1;
-	}
-	gst_element_add_pad(ctx->codec, gst_ghost_pad_new("sink", sink));
-
-	src = gst_element_get_static_pad(last, "src");
-	if (src == NULL) {
-		p_err("Cannot get src pad.\n");
-		return -1;
-	}
-	gst_element_add_pad(ctx->codec, gst_ghost_pad_new("src", src));
-
-	return 0;
-}
-
-static int
 wfb_gst_init_rtp(struct wfb_gst_context *ctx,
     const char *file, bool enc, bool live)
 {
@@ -523,6 +422,108 @@ skip_jitterbuf:
 		return -1;
 	}
 	gst_element_add_pad(ctx->rtp, gst_ghost_pad_new("src", src));
+
+	return 0;
+}
+
+
+static int
+wfb_gst_init_codec(struct wfb_gst_context *ctx,
+    const char *file, bool enc, bool live)
+{
+	GstElement *e, *first = NULL, *last = NULL;
+	GstPad *src, *sink;
+
+	assert(ctx);
+
+	ctx->codec = gst_bin_new("wfb_decoder");
+
+	/* stream parser */
+	e = gst_element_factory_make("h265parse", "wfb_h265");
+	if (e == NULL)
+		return -1;
+	g_object_set(e, "config-interval", 1, NULL);
+	gst_bin_add(GST_BIN(ctx->codec), e);
+	first = first ? first : e;
+	if (last) {
+		gst_element_link(last, e);
+	}
+	last = e;
+
+	if (live)
+		goto skip_ts;
+
+	/* update timestamp */
+	e = gst_element_factory_make("h265timestamper", "wfb_timestamp");
+	if (e == NULL)
+		return -1;
+	gst_bin_add(GST_BIN(ctx->codec), e);
+	first = first ? first : e;
+	if (last) {
+		gst_element_link(last, e);
+	}
+	last = e;
+
+	/* passthrough for file output */
+	if (file && !enc) {
+		p_info("Using h265parse(no decoding)\n");
+		goto add_pad;
+	}
+
+skip_ts:
+	/* try Video4Linux */
+	e = gst_element_factory_make("v4l2slh265dec", "h265");
+	if (e) {
+		p_info("Uisng v4l2slh265dec\n");
+		goto finish;
+	}
+
+	/* try VideoToolkit */
+	e = gst_element_factory_make("vtdec", "h265");
+	if (e) {
+		g_object_set(e, "discard-corrupted-frames", FALSE, NULL);
+		p_info("Using vtdec\n");
+		goto finish;
+	}
+
+	/* try ffmpeg */
+	e = gst_element_factory_make("avdec_h265", "h265");
+	if (e) {
+		p_info("Uisng avdec_h265\n");
+		goto finish;
+	}
+
+	/* fallback to pure software codec */
+	e = gst_element_factory_make("libde265dec", "h265");
+	if (e) {
+		p_info("Uisng libde265dec\n");
+		goto finish;
+	}
+
+	p_err("Cannot find H.265 codec.\n");
+	return -1;
+finish:
+	gst_bin_add(GST_BIN(ctx->codec), e);
+	first = first ? first : e;
+	if (last) {
+		gst_element_link(last, e);
+	}
+	last = e;
+
+add_pad:
+	sink = gst_element_get_static_pad(first, "sink");
+	if (sink == NULL) {
+		p_err("Cannot get sink pad.\n");
+		return -1;
+	}
+	gst_element_add_pad(ctx->codec, gst_ghost_pad_new("sink", sink));
+
+	src = gst_element_get_static_pad(last, "src");
+	if (src == NULL) {
+		p_err("Cannot get src pad.\n");
+		return -1;
+	}
+	gst_element_add_pad(ctx->codec, gst_ghost_pad_new("src", src));
 
 	return 0;
 }
@@ -673,7 +674,7 @@ int
 wfb_gst_context_init(struct wfb_gst_context *ctx,
     const char *file, bool enc, bool live)
 {
-	GstElement *last = NULL;
+	GstElement *last;
 	GstStateChangeReturn ret;
 
 	assert(ctx);
@@ -730,30 +731,12 @@ wfb_gst_context_init(struct wfb_gst_context *ctx,
 	ctx->pipeline = gst_pipeline_new("main-pipeline");
 
 	p_debug("add and link elements\n");
-	if (ctx->source) {
-		gst_bin_add(GST_BIN(ctx->pipeline), ctx->source);
-		last = ctx->source;
-	}
-	if (ctx->rtp) {
-		gst_bin_add(GST_BIN(ctx->pipeline), ctx->rtp);
-		gst_element_link(last, ctx->rtp);
-		last = ctx->rtp;
-	}
-	if (ctx->codec) {
-		gst_bin_add(GST_BIN(ctx->pipeline), ctx->codec);
-		gst_element_link(last, ctx->codec);
-		last = ctx->codec;
-	}
-	if (ctx->overlay) {
-		gst_bin_add(GST_BIN(ctx->pipeline), ctx->overlay);
-		gst_element_link(last, ctx->overlay);
-		last = ctx->overlay;
-	}
-	if (ctx->sink) {
-		gst_bin_add(GST_BIN(ctx->pipeline), ctx->sink);
-		gst_element_link(last, ctx->sink);
-		last = ctx->sink;
-	}
+	last = NULL;
+	last = wfb_add_element(ctx->pipeline, ctx->source, last);
+	last = wfb_add_element(ctx->pipeline, ctx->rtp, last);
+	last = wfb_add_element(ctx->pipeline, ctx->codec, last);
+	last = wfb_add_element(ctx->pipeline, ctx->overlay, last);
+	last = wfb_add_element(ctx->pipeline, ctx->sink, last);
 
 	/* Force change state to playing */
 	p_debug("start playing\n");

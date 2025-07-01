@@ -38,6 +38,22 @@ struct wfb_gst_context {
 	int history_cur;
 };
 
+static inline GstElement *
+wfb_add_element(GstElement *bin, GstElement *e, GstElement *last)
+{
+	assert(bin != NULL);
+
+	if (e == NULL)
+		return last;
+
+	gst_bin_add(GST_BIN(bin), e);
+	if (last != NULL) {
+		gst_element_link(last, e);
+	}
+
+	return e;
+}
+
 extern int wfb_gst_context_init(struct wfb_gst_context *ctx, const char *file,
     bool enc, bool live);
 extern int wfb_gst_context_init_live(struct wfb_gst_context *ctx);
